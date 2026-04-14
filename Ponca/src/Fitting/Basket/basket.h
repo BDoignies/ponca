@@ -235,7 +235,7 @@ namespace Ponca
         /// \brief Initialize the fit
         PONCA_MULTIARCH void init();
 
-        /// \brief Start a new iteration over neighbor. 
+        /// \brief Start a new iteration over neighbor.
         ///
         /// /!\ Do not forget to use this function when multiple pass are needed
         PONCA_MULTIARCH void startNewPass();
@@ -256,14 +256,15 @@ namespace Ponca
         /// When called directly, don't forget to call Fit::startNewPass when starting multiple passes
         /// \see compute Prefer when using a range of Points
         /// \see computeWithIds Prefer when using a range of ids
-        /// 
+        ///
         /// \param _w The weight of the neighbor
         /// \param _localQ The location expressed in local coordinates
         /// \param _nei The neighbor
         /// \param _dw Derivative array
         ///
         /// \return false if param nei is not a valid neighbor (weight = 0)
-        PONCA_MULTIARCH void addLocalNeighbor(Scalar _w, const VectorType& _localQ, const DataPoint& _nei, typename Base::ScalarArray& _dw);
+        PONCA_MULTIARCH void addLocalNeighbor(Scalar _w, const VectorType& _localQ, const DataPoint& _nei,
+                                              typename Base::ScalarArray& _dw);
     };
 
     /*!
@@ -299,7 +300,7 @@ namespace Ponca
         /// \brief Initialize the fit
         PONCA_MULTIARCH void init();
 
-        /// \brief Start a new iteration over neighbor. 
+        /// \brief Start a new iteration over neighbor.
         ///
         /// /!\ Do not forget to use this function when multiple pass are needed
         PONCA_MULTIARCH void startNewPass();
@@ -320,9 +321,9 @@ namespace Ponca
         /// When called directly, don't forget to call Fit::startNewPass when starting multiple passes
         /// \see compute Prefer when using a range of Points
         /// \see computeWithIds Prefer when using a range of ids
-        /// 
-        /// \param _w The weight of the neighbor
-        /// \param _localQ The location expressed in local coordinates
+        ///
+        /// \param w The weight of the neighbor
+        /// \param localQ The location expressed in local coordinates
         /// \param _nei The neighbor
         ///
         /// \return false if param nei is not a valid neighbor (weight = 0)
@@ -331,6 +332,6 @@ namespace Ponca
     }; // class Basket
 
 #undef WRITE_COMPUTE_FUNCTIONS
-} // namespace Ponca    
+} // namespace Ponca
 
 #include "basket.hpp"
