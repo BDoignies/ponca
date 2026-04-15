@@ -38,6 +38,7 @@ typename DistWeightFunc<DataPoint, WeightKernel>::MatrixType DistWeightFunc<Data
 {
     static_assert(WeightKernel::isDDValid, "Second order derivatives are required");
     MatrixType result = MatrixType::Zero();
+
     const auto q      = NeighborhoodFrame::convertToLocalBasis(_q);
     Scalar d          = q.norm();
     if ((!isCompact) || (d <= m_t && d != Scalar(0.)))
