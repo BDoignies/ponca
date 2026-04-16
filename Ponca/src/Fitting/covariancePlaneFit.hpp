@@ -25,14 +25,14 @@ typename CovariancePlaneFitImpl<DataPoint, _NFilter, T>::VectorType CovariancePl
     DataPoint, _NFilter, T>::worldToTangentPlane(const VectorType& _q, bool _isPositionVector) const
 {
     return Base::m_solver.eigenvectors().transpose() *
-           Base::getNeighborFilter().convertToLocalBasis(_q, _isPositionVector);
+           Base::getNeighborhoodFrame().convertToLocalBasis(_q, _isPositionVector);
 }
 
 template <class DataPoint, class _NFilter, typename T>
 typename CovariancePlaneFitImpl<DataPoint, _NFilter, T>::VectorType CovariancePlaneFitImpl<
     DataPoint, _NFilter, T>::tangentPlaneToWorld(const VectorType& _lq, bool _isPositionVector) const
 {
-    return Base::getNeighborFilter().convertToGlobalBasis(Base::m_solver.eigenvectors().transpose().inverse() * _lq,
+    return Base::getNeighborhoodFrame().convertToGlobalBasis(Base::m_solver.eigenvectors().transpose().inverse() * _lq,
                                                           _isPositionVector);
 }
 

@@ -149,8 +149,11 @@ namespace Ponca
         */
         PONCA_MULTIARCH inline void changeBasis(const VectorType& newbasis)
         {
-            VectorType diff = Base::getNeighborFilter().evalPos() - newbasis;
-            Base::m_nFilter.changeNeighborhoodFrame(newbasis);
+            auto& neighborhoodFrame = Base::getNeighborhoodFrame();
+            
+            VectorType diff = neighborhoodFrame.center() - newbasis;
+            neighborhoodFrame.setCenter(newbasis);
+            
             Base::init();
             m_uc = m_uc - m_ul.dot(diff) + m_uq * diff.dot(diff);
             m_ul = m_ul - Scalar(2.) * m_uq * diff;
@@ -216,7 +219,7 @@ namespace Ponca
                 return VectorType::Constant(numeric_limits<Scalar>::infinity()); // non-sense value
 
             Scalar b = Scalar(1.) / m_uq;
-            return Base::getNeighborFilter().convertToGlobalBasis((Scalar(-0.5) * b) * m_ul);
+            return Base::getNeighborhoodFrame().convertToGlobalBasis((Scalar(-0.5) * b) * m_ul);
         }
 
         //! \brief State indicating when the sphere has been normalized
@@ -227,7 +230,7 @@ namespace Ponca
         PONCA_MULTIARCH [[nodiscard]] inline Scalar potential(const VectorType& _q) const
         {
             // Turn to centered basis
-            const VectorType lq = Base::getNeighborFilter().convertToLocalBasis(_q);
+            const VectorType lq = Base::getNeighborhoodFrame().convertToLocalBasis(_q);
             return potentialLocal(lq);
         }
 
@@ -250,7 +253,7 @@ namespace Ponca
         PONCA_MULTIARCH [[nodiscard]] inline VectorType primitiveGradient(const VectorType& _q) const
         {
             // Turn to centered basis
-            const VectorType lq = Base::getNeighborFilter().convertToLocalBasis(_q);
+            const VectorType lq = Base::getNeighborhoodFrame().convertToLocalBasis(_q);
             return primitiveGradientLocal(lq);
         }
 

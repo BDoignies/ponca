@@ -206,11 +206,11 @@ namespace Ponca
         PONCA_MULTIARCH FIT_RESULT computeMLSImpl(Func&& computeFunc, const int mlsIter, const Scalar epsilon)
         {
             FIT_RESULT res = UNDEFINED;
-            auto lastPos   = Base::getNeighborFilter().evalPos();
+            auto lastPos   = Base::getNeighborhoodFrame().center();
 
             for (int mm = 0; mm < mlsIter; ++mm)
             {
-                Base::m_nFilter.changeNeighborhoodFrame(lastPos);
+                Base::getNeighborhoodFrame().setCenter(lastPos);
                 res = computeFunc();
 
                 if (Base::isStable())
@@ -363,7 +363,7 @@ namespace Ponca
             PONCA_MULTIARCH_STD_MATH(min)
 
             // turn to centered basis
-            const VectorType lq = Base::getNeighborFilter().convertToLocalBasis(_q);
+            const VectorType lq = Base::getNeighborhoodFrame().convertToLocalBasis(_q);
 
             VectorType grad;
             VectorType dir  = Base::primitiveGradientLocal(lq);
@@ -380,7 +380,7 @@ namespace Ponca
                 delta = -Base::potentialLocal(proj) * min(ilg, Scalar(1.));
                 proj += dir * delta;
             }
-            return Base::getNeighborFilter().convertToGlobalBasis(proj);
+            return Base::getNeighborhoodFrame().convertToGlobalBasis(proj);
         }
     }; // class Basket
 

@@ -46,7 +46,7 @@ namespace Ponca
         ///  \f$\mathbf{x}\f$'s neighborhood
         PONCA_MULTIARCH inline VectorType barycenter() const
         {
-            return Base::getNeighborFilter().convertToGlobalBasis(barycenterLocal());
+            return Base::getNeighborhoodFrame().convertToGlobalBasis(barycenterLocal());
         }
 
         /*! \brief The distance between the barycenter and the basis center.

@@ -63,14 +63,14 @@ template <class DataPoint, class _NFilter, int DiffType, typename T>
 typename GLSDer<DataPoint, _NFilter, DiffType, T>::VectorArray GLSDer<DataPoint, _NFilter, DiffType,
                                                                       T>::deta_normalized() const
 {
-    return Base::getNeighborFilter().evalScale() * deta();
+    return Base::getNeighborhoodFrame().scale() * deta();
 }
 
 template <class DataPoint, class _NFilter, int DiffType, typename T>
 typename GLSDer<DataPoint, _NFilter, DiffType, T>::ScalarArray GLSDer<DataPoint, _NFilter, DiffType,
                                                                       T>::dkappa_normalized() const
 {
-    return dkappa() * Base::getNeighborFilter().evalScale() * Base::getNeighborFilter().evalScale();
+    return dkappa() * Base::getNeighborhoodFrame().scale() * Base::getNeighborhoodFrame().scale();
 }
 
 template <class DataPoint, class _NFilter, int DiffType, typename T>

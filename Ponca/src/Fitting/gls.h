@@ -79,7 +79,7 @@ namespace Ponca
         /*! \brief Compute and return \f$ \frac{\tau}{t} \f$ */
         PONCA_MULTIARCH [[nodiscard]] inline Scalar tau_normalized() const
         {
-            return tau() / Base::getNeighborFilter().evalScale();
+            return tau() * Base::getNeighborhoodFrame().iScale();
         }
 
         /*! \brief Compute and return \f$ \eta \f$ */
@@ -88,7 +88,7 @@ namespace Ponca
         /*! \brief Compute and return \f$ t \kappa \f$ */
         PONCA_MULTIARCH [[nodiscard]] inline Scalar kappa_normalized() const
         {
-            return kappa() * Base::getNeighborFilter().evalScale();
+            return kappa() * Base::getNeighborhoodFrame().evalScale();
         }
 
         /*! \brief Return the fitness, e.g. the pratt norm of the initial scalar field */
