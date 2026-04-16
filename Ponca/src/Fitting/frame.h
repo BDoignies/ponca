@@ -124,9 +124,22 @@ namespace Ponca
     struct FrameWithNormal : public _Base
     {
         using Base       = _Base;
-        using DataPoint  = typename Base::DataPoint;
-        using Scalar     = typename Base::Scalar;
-        using VectorType = typename _Base::VectorType;
+        using DataPoint   = typename Base::DataPoint;
+        using Scalar      = typename Base::Scalar;
+        using VectorType  = typename Base::VectorType;
+        using MatrixType  = typename Base::MatrixType;
+        using ScaleVector = typename Base::ScaleVector;
+        using ScaleMatrix = typename Base::ScaleMatrix;
+
+
+        /// \brief Flag indicating that this class does not modify the coordinates when passing from global to local
+        static constexpr bool hasLocalFrame = Base::hasLocalFrame;
+        /// \brief Flag indicating that this class behaves the same in every directions
+        static constexpr bool isIsotropic = Base::isIsotropic;
+        /// \brief Flag indicating that this provides space derivative of distance
+        static constexpr bool hasDistanceSpaceDerivative = Base::hasDistanceSpaceDerivative;
+        /// \brief Flag indicating that this provides scale derivative of distance
+        static constexpr bool hasDistanceScaleDerivative = Base::hasDistanceScaleDerivative;
 
         FrameWithNormal() : Base(), m_normal(VectorType::Zero()) {}
         FrameWithNormal(const VectorType& _c, const Scalar _t = 1.) : Base(_c, _t), m_normal(VectorType::Zero()) {}
@@ -171,6 +184,10 @@ namespace Ponca
         static constexpr bool hasLocalFrame = true;
         /// \brief Flag indicating that this class behaves the same in every directions
         static constexpr bool isIsotropic = true;
+        /// \brief Flag indicating that this provides space derivative of distance
+        static constexpr bool hasDistanceSpaceDerivative = true;
+        /// \brief Flag indicating that this provides scale derivative of distance
+        static constexpr bool hasDistanceScaleDerivative = true;
 
         CenteredNeighborhoodFrame() : m_center(VectorType::Zero()), m_scale(1.), m_iScale(1.) {}
 
@@ -221,7 +238,7 @@ namespace Ponca
             Scalar hScale = -m_iScale * m_iScale / (_d * _d * _d);
 
             MatrixType H = hScale * (_q * _q.transpose());
-            H.diagonal().array() += m_iScale * _g;
+            H.diagonal() += m_iScale * _g;
 
             return H;
         }
@@ -232,7 +249,7 @@ namespace Ponca
             return -2. * m_iScale * _g;
         }
 
-        PONCA_MULTIARCH ScaleVector localDistancedsdw(const VectorType& _q, Scalar _d) const
+        PONCA_MULTIARCH VectorType localDistancedsdw(const VectorType& _q, Scalar _d) const
         {
             return -m_iScale * localDistancedw(_q, _d);
         }

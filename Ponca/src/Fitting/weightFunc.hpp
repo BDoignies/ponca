@@ -88,7 +88,7 @@ typename DistWeightFunc<DataPoint, WeightKernel, _NeighborhoodFrame>::Scalar Dis
     if ((!isCompact) || (d <= 1. && d != Scalar(0.)))
     {
         const auto g = NeighborhoodFrame::localDistanceds(lq, d);
-        const auto h = NeighborhoodFrame::localDistanced2d(lq, d);
+        const auto h = NeighborhoodFrame::localDistanced2s(lq, g, d);
         result       = m_wk.ddf(d) * g * g + m_wk.df(d) * h;
     }
     return result;

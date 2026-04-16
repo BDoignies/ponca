@@ -157,8 +157,8 @@ namespace Ponca::internal
         {
             PONCA_MULTIARCH_STD_MATH(abs);
             // Compute normal and maximum distance.
-            VectorType c = w.center();
-            VectorType n = w.normal();
+            VectorType c = w.frame().center();
+            VectorType n = w.frame().normal();
             VectorType a{VectorType::Zero()};
             Scalar avg_d = Scalar(0);
 
@@ -202,8 +202,8 @@ namespace Ponca::internal
             {
                 distance2[i] = avg_d * avg_d;
                 targets[i]   = avg_d * (u * cos(i * M_PI / 3.0) + v * sin(i * M_PI / 3.0));
-                positions[i] = w.center();
-                normals[i]   = w.normal();
+                positions[i] = w.frame().center();
+                normals[i]   = w.frame().normal();
             }
 
             // Compute closest points.
@@ -253,8 +253,8 @@ namespace Ponca::internal
                                    std::vector<Triangle<P>>& triangles)
         {
             // Compute normal and maximum distance.
-            VectorType c = w.center();
-            VectorType n = w.normal();
+            VectorType c = w.frame().center();
+            VectorType n = w.frame().normal();
             VectorType a = VectorType::Zero();
             Scalar avg_d = Scalar(0);
 
@@ -327,8 +327,8 @@ namespace Ponca::internal
             {
                 if (array_nb[i] == 0)
                 {
-                    array_avg_normals[i] = w.normal();
-                    array_avg_pos[i]     = w.center();
+                    array_avg_normals[i] = w.frame().normal();
+                    array_avg_pos[i]     = w.frame().center();
                 }
                 else
                 {

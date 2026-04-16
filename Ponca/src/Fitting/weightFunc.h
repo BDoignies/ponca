@@ -186,6 +186,8 @@ namespace Ponca
         PONCA_MULTIARCH [[nodiscard]] inline VectorType scaleSpaced2w(const VectorType& _q,
                                                                       const DataPoint& /*attributes*/) const;
 
+        PONCA_MULTIARCH const NeighborhoodFrame& frame() const { return *this; }
+        PONCA_MULTIARCH NeighborhoodFrame& frame() { return *this; }
     protected:
         WeightKernel m_wk; /*!< \brief 1D function applied to weight queries */
 
