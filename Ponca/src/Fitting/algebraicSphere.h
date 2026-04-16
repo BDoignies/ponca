@@ -150,10 +150,10 @@ namespace Ponca
         PONCA_MULTIARCH inline void changeBasis(const VectorType& newbasis)
         {
             auto& neighborhoodFrame = Base::getNeighborhoodFrame();
-            
+
             VectorType diff = neighborhoodFrame.center() - newbasis;
             neighborhoodFrame.setCenter(newbasis);
-            
+
             Base::init();
             m_uc = m_uc - m_ul.dot(diff) + m_uq * diff.dot(diff);
             m_ul = m_ul - Scalar(2.) * m_uq * diff;

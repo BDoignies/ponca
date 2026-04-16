@@ -169,8 +169,8 @@ namespace Ponca
     NormalDerivativeWeingartenEstimator<DataPoint, _NFilter, DiffType, T>::tangentPlaneToWorld(
         const VectorType& _lq, bool _isPositionVector) const
     {
-        return Base::getNeighborhoodFrame().convertToGlobalBasis(m_tangentBasis.normalized().transpose().inverse() * _lq,
-                                                              _isPositionVector);
+        return Base::getNeighborhoodFrame().convertToGlobalBasis(
+            m_tangentBasis.normalized().transpose().inverse() * _lq, _isPositionVector);
     }
 
     namespace internal

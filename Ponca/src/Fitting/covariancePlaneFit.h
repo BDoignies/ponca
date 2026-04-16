@@ -68,8 +68,7 @@ namespace Ponca
          *        (e.g., in contrast to displacement or normal vectors)
          * \return Vector expressed in local tangent frame
          */
-        PONCA_MULTIARCH inline VectorType worldToTangentPlane(const VectorType& _q,
-                                                              bool Vec = true) const;
+        PONCA_MULTIARCH inline VectorType worldToTangentPlane(const VectorType& _q, bool Vec = true) const;
 
         /*!
          * \brief Transform a point from the tangent plane [h, u, v]^T to ambient space

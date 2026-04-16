@@ -104,6 +104,7 @@ namespace Ponca
         PONCA_MULTIARCH inline const NeighborFilter& getNeighborhoodFrame() const { return m_nFilter; }
         /*! \brief Write access to the NeighborFilter \see setNeighborFilter */
         PONCA_MULTIARCH inline NeighborFilter& getNeighborhoodFrame() { return m_nFilter; }
+
     public:
         /*! \return the current test of the fit */
         PONCA_MULTIARCH [[nodiscard]] inline FIT_RESULT getCurrentState() const { return m_eCurrentState; }

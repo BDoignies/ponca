@@ -29,10 +29,12 @@ namespace Ponca
 
         \warning DistWeightFunc assumes that the evaluation scale t is strictly positive, but the valus is not checked
     */
-    template <class DataPoint, class WeightKernel>
-    class DistWeightFunc : public CenteredNeighborhoodFrame<DataPoint>
+    template <class DataPoint, class WeightKernel, class _NeighborhoodFrame = CenteredNeighborhoodFrame<DataPoint>>
+    class DistWeightFunc : public _NeighborhoodFrame
     {
     public:
+        static_assert(_NeighborhoodFrame::isIsotropic, "DistWeightFunc requires an isotropic frame");
+
         /*! \brief Scalar type from DataPoint */
         using Scalar = typename DataPoint::Scalar;
         /*! \brief Vector type from DataPoint */
@@ -42,7 +44,7 @@ namespace Ponca
         /*! \brief Return type of the method #w() */
         using WeightReturnType = PONCA_MULTIARCH_CU_STD_NAMESPACE(pair)<Scalar, VectorType>;
         /// \brief Frame used to express the neighbors locally
-        using NeighborhoodFrame = CenteredNeighborhoodFrame<DataPoint>;
+        using NeighborhoodFrame = _NeighborhoodFrame;
         /// \brief Flag indicating if the weighting kernel is compact of not
         static constexpr bool isCompact = WeightKernel::isCompact;
 
@@ -52,7 +54,7 @@ namespace Ponca
         */
         PONCA_MULTIARCH inline DistWeightFunc(const VectorType& _evalPos = VectorType::Zero(),
                                               const Scalar& _t           = Scalar(1.))
-            : NeighborhoodFrame(_evalPos), m_t(_t)
+            : NeighborhoodFrame(_evalPos, _t)
         {
             //\todo manage that assert on __host__ and __device__
             // assert(_t > Scalar(0));
@@ -60,7 +62,7 @@ namespace Ponca
 
         ///! \copydoc DistWeightFunc
         PONCA_MULTIARCH inline DistWeightFunc(const DataPoint& _evalPoint, const Scalar& _t = Scalar(1.))
-            : NeighborhoodFrame(_evalPoint.pos()), m_t(_t)
+            : NeighborhoodFrame(_evalPoint.pos())
         {
             //\todo manage that assert on __host__ and __device__
             // assert(_t > Scalar(0));
@@ -184,11 +186,7 @@ namespace Ponca
         PONCA_MULTIARCH [[nodiscard]] inline VectorType scaleSpaced2w(const VectorType& _q,
                                                                       const DataPoint& /*attributes*/) const;
 
-        /*! \brief Access to the evaluation scale set during the initialization */
-        PONCA_MULTIARCH [[nodiscard]] inline Scalar evalScale() const { return m_t; }
-
     protected:
-        Scalar m_t;        /*!< \brief Evaluation scale */
         WeightKernel m_wk; /*!< \brief 1D function applied to weight queries */
 
     }; // class DistWeightFunc

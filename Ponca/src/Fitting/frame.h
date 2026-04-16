@@ -43,6 +43,11 @@ namespace Ponca
         Scalar d      = localDistance(_p);                                   \
         ScaleVector g = localDistancedw(_p, d);                              \
         return localDistanced2s(_p, g, d);                                   \
+    }                                                                        \
+    PONCA_MULTIARCH ScaleMatrix localDistancedsdw(const VectorType& _p)      \
+    {                                                                        \
+        Scalar d = localDistance(_p);                                        \
+        return localDistancedsdw(_p, d);                                     \
     }
 
     template <typename _DataPoint>
@@ -109,36 +114,44 @@ namespace Ponca
             return 0.;
         }
 
+        PONCA_MULTIARCH ScaleVector localDistancedsdw(const VectorType& _q, Scalar _d) const { return 0.; }
+
         PONCA_SPACE_FRAME_FUNCTIONS
         PONCA_SPACE_FRAME_DERIVATIVES
     };
 
-    template<typename _Base>
+    template <typename _Base>
     struct FrameWithNormal : public _Base
     {
-        using Base = _Base;
-        using DataPoint = typename Base::DataPoint;
-        using Scalar = typename Base::Scalar;
+        using Base       = _Base;
+        using DataPoint  = typename Base::DataPoint;
+        using Scalar     = typename Base::Scalar;
         using VectorType = typename _Base::VectorType;
 
         FrameWithNormal() : Base(), m_normal(VectorType::Zero()) {}
         FrameWithNormal(const VectorType& _c, const Scalar _t = 1.) : Base(_c, _t), m_normal(VectorType::Zero()) {}
-        FrameWithNormal(const VectorType& _c, const Scalar _t, const VectorType& _n) : Base(_c, _t), m_normal(_n / _n.norm()) {}
-        FrameWithNormal(const DataPoint& _p, const Scalar _t = 1.) : FrameWithNormal(_p.pos(), _t, _p.normal()) {}
-        
-        PONCA_MULTIARCH void setNormal(const VectorType& _n, bool isNormalized = false) 
+        FrameWithNormal(const VectorType& _c, const Scalar _t, const VectorType& _n)
+            : Base(_c, _t), m_normal(_n / _n.norm())
         {
-            if (isNormalized) m_normal = _n;
-            else m_normal = _n / _n.norm();
+        }
+        FrameWithNormal(const DataPoint& _p, const Scalar _t = 1.) : FrameWithNormal(_p.pos(), _t, _p.normal()) {}
+
+        PONCA_MULTIARCH void setNormal(const VectorType& _n, bool isNormalized = false)
+        {
+            if (isNormalized)
+                m_normal = _n;
+            else
+                m_normal = _n / _n.norm();
         }
 
-        PONCA_MULTIARCH void setCenter(const DataPoint& _q) const 
-        { 
+        PONCA_MULTIARCH void setCenter(const DataPoint& _q) const
+        {
             Base::setCenter(_q.pos());
             setNormal(_q.normal());
         }
 
-        PONCA_MULTIARCH const VectorType& normal() const { return m_normal; } 
+        PONCA_MULTIARCH const VectorType& normal() const { return m_normal; }
+
     protected:
         typename Base::VectorType m_normal;
     };
@@ -217,6 +230,11 @@ namespace Ponca
         PONCA_MULTIARCH ScaleMatrix localDistanced2s(const VectorType& _q, const ScaleVector& _g, Scalar _d) const
         {
             return -2. * m_iScale * _g;
+        }
+
+        PONCA_MULTIARCH ScaleVector localDistancedsdw(const VectorType& _q, Scalar _d) const
+        {
+            return -m_iScale * localDistancedw(_q, _d);
         }
 
         PONCA_SPACE_FRAME_FUNCTIONS

@@ -63,6 +63,8 @@ template <class DataPoint, class _NFilter, int DiffType, typename T>
 typename GLSDer<DataPoint, _NFilter, DiffType, T>::VectorArray GLSDer<DataPoint, _NFilter, DiffType,
                                                                       T>::deta_normalized() const
 {
+    static_assert(decltype(Base::getNeighborhoodFrame())::isIsotropic,
+                  "GLS normalized only defined for isotropic frames");
     return Base::getNeighborhoodFrame().scale() * deta();
 }
 
@@ -70,6 +72,8 @@ template <class DataPoint, class _NFilter, int DiffType, typename T>
 typename GLSDer<DataPoint, _NFilter, DiffType, T>::ScalarArray GLSDer<DataPoint, _NFilter, DiffType,
                                                                       T>::dkappa_normalized() const
 {
+    static_assert(decltype(Base::getNeighborhoodFrame())::isIsotropic,
+                  "GLS normalized only defined for isotropic frames");
     return dkappa() * Base::getNeighborhoodFrame().scale() * Base::getNeighborhoodFrame().scale();
 }
 

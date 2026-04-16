@@ -33,7 +33,7 @@ typename CovariancePlaneFitImpl<DataPoint, _NFilter, T>::VectorType CovariancePl
     DataPoint, _NFilter, T>::tangentPlaneToWorld(const VectorType& _lq, bool _isPositionVector) const
 {
     return Base::getNeighborhoodFrame().convertToGlobalBasis(Base::m_solver.eigenvectors().transpose().inverse() * _lq,
-                                                          _isPositionVector);
+                                                             _isPositionVector);
 }
 
 template <class DataPoint, class _NFilter, int DiffType, typename T>
