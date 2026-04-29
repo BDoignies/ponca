@@ -250,7 +250,7 @@ namespace Ponca
             PONCA_MULTIARCH [[nodiscard]] inline VectorType spacedw(const VectorType& /*_q*/,
                                                                     const DataPoint& /*attributes*/) const
             {
-                return VectorType::Zeros();
+                return VectorType::Zero();
             }
 
             /*!
@@ -261,7 +261,7 @@ namespace Ponca
             PONCA_MULTIARCH [[nodiscard]] inline MatrixType spaced2w(const VectorType& /*_q*/,
                                                                      const DataPoint& /*attributes*/) const
             {
-                return MatrixType::Zeros();
+                return MatrixType::Zero();
             }
 
             /*!
@@ -292,7 +292,7 @@ namespace Ponca
             PONCA_MULTIARCH [[nodiscard]] inline VectorType scaleSpaced2w(const VectorType& /*_q*/,
                                                                           const DataPoint& /*attributes*/) const
             {
-                return VectorType::Zeros();
+                return VectorType::Zero();
             }
 
             PONCA_MULTIARCH [[nodiscard]] inline NeighborhoodFrame& frame() { return *this; }
