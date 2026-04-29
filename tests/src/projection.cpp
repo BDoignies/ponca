@@ -13,9 +13,9 @@
  */
 
 #include "../common/testing.h"
-#include "../common/testUtils.h"
 
-#include <Ponca/Fitting>
+#include <Ponca/Precompiled>
+
 #include <chrono>
 #include <math.h>
 

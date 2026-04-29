@@ -14,7 +14,8 @@
 #include "../common/testing.h"
 #include "../common/testUtils.h"
 
-#include <Ponca/Fitting>
+#include <Ponca/Precompiled>
+
 #include <vector>
 #include <fstream>
 

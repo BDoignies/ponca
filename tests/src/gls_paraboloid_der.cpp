@@ -18,8 +18,8 @@
 
 #include <fstream>
 
-#include <Ponca/Common>
-#include <Ponca/Fitting>
+#include <Ponca/Precompiled>
+
 #include <vector>
 
 using namespace std;

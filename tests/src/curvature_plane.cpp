@@ -15,7 +15,9 @@
 #include "../common/testUtils.h"
 #include "../split_test_helper.h"
 
-#include <Ponca/Fitting>
+#include <vector>
+
+#include <Ponca/Precompiled>
 #include <Ponca/SpatialPartitioning>
 #include <vector>
 
@@ -167,12 +169,21 @@ void callSubTests()
     // Curvature estimators that runs on top of the covariance fit
     //! [Curvature Tensor PCA normals]
     using EstimatorSmoothNormalCovariance =
+<<<<<<< HEAD
         BasketDiff<FitSmoothNormalCovariance, FitSpaceDer, CovariancePlaneDer, NormalDerivativeWeingartenEstimator,
                    WeingartenCurvatureEstimatorDer>;
     //! [Curvature Tensor PCA normals]
     using EstimatorConstantNormalCovariance =
         BasketDiff<FitConstantNormalCovariance, FitSpaceDer, CovariancePlaneDer, NormalDerivativeWeingartenEstimator,
                    WeingartenCurvatureEstimatorDer>;
+=======
+        BasketDiff<FitSmoothNormalCovariance, FitSpaceDer, CovariancePlaneDer, CurvatureEstimatorDer,
+                   NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>;
+    //! [Curvature Tensor PCA normals]
+    using EstimatorConstantNormalCovariance =
+        BasketDiff<FitConstantNormalCovariance, FitSpaceDer, CovariancePlaneDer, CurvatureEstimatorDer,
+                   NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>;
+>>>>>>> 92309f438 ([tests] Use precompiled target)
     // Curvature estimators based on MongePatch fitting using generalized quadric
     //! [Curvature Estimator Monge Quadric]
     using FitMongeSmooth = Basket<Point, WeightSmoothFunc, MongePatchQuadraticFit>;

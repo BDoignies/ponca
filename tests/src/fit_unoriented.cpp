@@ -12,7 +12,7 @@
 #include "../common/testing.h"
 #include "../common/testUtils.h"
 
-#include <Ponca/Fitting>
+#include <Ponca/Precompiled>
 #include <vector>
 
 using namespace std;
@@ -129,8 +129,13 @@ void callSubTests()
     typedef Basket<Point, WeightSmoothFunc, UnorientedSphereFit, GLSParam> FitSmoothUnoriented;
     typedef Basket<Point, WeightConstantFunc, UnorientedSphereFit, GLSParam> FitConstantUnoriented;
 
+<<<<<<< HEAD
     typedef BasketDiff<FitSmoothUnoriented, FitScaleSpaceDer, UnorientedSphereDer, NormalDerivativeWeingartenEstimator,
                        WeingartenCurvatureEstimatorDer>
+=======
+    typedef BasketDiff<FitSmoothUnoriented, FitScaleSpaceDer, UnorientedSphereDer, GLSDer, CurvatureEstimatorDer,
+                       NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>
+>>>>>>> 92309f438 ([tests] Use precompiled target)
         FitSmoothUnorientedDiff;
 
     cout << "Testing with perfect sphere (unoriented)..." << endl;

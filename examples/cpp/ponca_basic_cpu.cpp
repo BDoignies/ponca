@@ -12,7 +12,7 @@
 
 #include <algorithm>
 #include <iostream>
-include <vector>
+#include <vector>
 
 #include <Ponca/Precompiled>
 
