@@ -37,7 +37,7 @@ void testPlaneSycl(sycl::device device, const bool _bUnoriented = false, const b
     std::cout << "Running on: " << device.get_info<sycl::info::device::name>() << std::endl;
 
     using DataPoint        = Ponca::PointPositionNormal<Scalar, Dim>;
-    using WeightSmoothFunc = Ponca::DistWeightFunc<DataPoint, Ponca::SmoothWeightKernel<Scalar>>;
+    using WeightSmoothFunc = Ponca::DistWeightFilter<DataPoint, Ponca::SmoothWeightKernel<Scalar>>;
     using MeanFitSmooth    = Ponca::Basket<DataPoint, WeightSmoothFunc, Ponca::MeanPlaneFit>;
     using VectorType       = typename DataPoint::VectorType;
 
@@ -65,9 +65,6 @@ void testPlaneSycl(sycl::device device, const bool _bUnoriented = false, const b
     //! [Build KdTree on CPU]
 
     auto queue = sycl::queue(device);
-    // The size of the data we send between Host and Device
-    const unsigned long scalarBufferSize = nbPoints * sizeof(Scalar);
-    const unsigned long vectorBufferSize = scalarBufferSize * Dim;
 
     //! [Copy KdTree on GPU]
     using BuffersGPU = typename KdTreeGPU<DataPoint>::Buffers;
