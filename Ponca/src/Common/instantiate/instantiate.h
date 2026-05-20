@@ -27,9 +27,11 @@ namespace Ponca
 {
 // Note: Variadic macros here because ',' in template definition are parsed as different arguments
 // we could use a trick by wrapping the class in parenthesis, but for now this works and is simpler.
-#define _PONCA_BASKET_X(name, desc, ...) _INSTANTIATE_PONCA_EXTERN template class _PONCA_API __VA_ARGS__;
-#define _PONCA_BASKET_DIFF_X(name, desc, ...) _INSTANTIATE_PONCA_EXTERN template class _PONCA_API __VA_ARGS__;
+#define _PONCA_INSTANTIATE(...) _INSTANTIATE_PONCA_EXTERN template class _PONCA_API __VA_ARGS__;
+#define _PONCA_BASKET_X(name, desc, ...) _PONCA_INSTANTIATE(__VA_ARGS__);
+#define _PONCA_BASKET_DIFF_X(name, desc, ...) _PONCA_INSTANTIATE(__VA_ARGS__);
 #include "instantiate_list/entrypoint.h"
 #undef _PONCA_BASKET_X
 #undef _PONCA_BASKET_DIFF_X
+#undef _PONCA_INSTANTIATE
 }; // namespace Ponca

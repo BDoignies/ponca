@@ -29,8 +29,8 @@
 //
 // The _PONCA_BASKET_DIFF_X macro will be defined elsewhere to generate
 // the desired code
-
 #if _D == 3
+
 _PONCA_BASKET_DIFF_X("CovariancePlaneCurvatureEstimator", "",
                      BasketDiff<Basket<_P, _NF, CovariancePlaneFit>, _DT, CovariancePlaneDer, CurvatureEstimatorDer,
                                 NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>)
