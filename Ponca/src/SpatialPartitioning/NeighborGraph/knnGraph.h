@@ -32,11 +32,11 @@ namespace Ponca
         const int k{DefaultKInKnnGraph()};
 
         PONCA_MULTIARCH inline KnnGraphBuffers() = default;
-        PONCA_MULTIARCH inline KnnGraphBuffers(PointContainer _points, const int _k = DefaultKInKnnGraph())
+        PONCA_MULTIARCH inline KnnGraphBuffers(PointContainerConstRef _points, const int _k = DefaultKInKnnGraph())
             : Base(_points), k(_k)
         {
         }
-        PONCA_MULTIARCH inline KnnGraphBuffers(PointContainer _points, typename Traits::IndexContainerRef _indices,
+        PONCA_MULTIARCH inline KnnGraphBuffers(PointContainerConstRef _points, IndexContainerRef _indices,
                                                const size_t _points_size, const size_t _indices_size, const int _k)
             : Base(_points, _indices, _points_size, _indices_size), k(_k)
         {
@@ -75,7 +75,10 @@ namespace Ponca
         PONCA_MULTIARCH inline StaticKnnGraphBase<Traits>(Buffers& _bufs) : Base(_bufs) {}
 
     protected:
-        PONCA_MULTIARCH inline StaticKnnGraphBase(PointContainer _points, const int _k) : Base(Buffers(_points, _k)) {}
+        PONCA_MULTIARCH inline StaticKnnGraphBase(PointContainerConstRef _points, const int _k)
+            : Base(Buffers(_points, _k))
+        {
+        }
 
         // Accessors ---------------------------------------------------------------
     public:

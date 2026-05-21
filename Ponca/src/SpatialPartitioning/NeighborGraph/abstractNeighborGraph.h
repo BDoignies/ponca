@@ -11,12 +11,14 @@ This Source Code Form is subject to the terms of the Mozilla Public
 #include <cstddef> // size_t
 
 #define WRITE_NEIGHBOR_GRAPH_ALIASES                                                                                    \
-    using Traits            = _Traits;                    /*!< Alias to the Traits type                          */     \
-    using DataPoint         = typename Traits::DataPoint; /*!< DataPoint given by user via Traits                */     \
-    using Scalar            = typename DataPoint::Scalar; /*!< Scalar given by user via DataPoint                */     \
-    using VectorType        = typename DataPoint::VectorType; /*!< VectorType given by user via DataPoint            */ \
-    using IndexType         = typename Traits::IndexType; /*!< Type used to index points into the PointContainer */     \
-    using PointContainer    = typename Traits::PointContainer; /*!< Container for DataPoint used inside the KdTree   */ \
+    using Traits         = _Traits;                         /*!< Alias to the Traits type                          */   \
+    using DataPoint      = typename Traits::DataPoint;      /*!< DataPoint given by user via Traits                */   \
+    using Scalar         = typename DataPoint::Scalar;      /*!< Scalar given by user via DataPoint                */   \
+    using VectorType     = typename DataPoint::VectorType;  /*!< VectorType given by user via DataPoint            */   \
+    using IndexType      = typename Traits::IndexType;      /*!< Type used to index points into the PointContainer */   \
+    using PointContainer = typename Traits::PointContainer; /*!< Container for DataPoint used inside the KdTree   */    \
+    using PointContainerConstRef =                                                                                      \
+        typename Traits::PointContainerConstRef; /*!< Container for DataPoint used inside the KdTree   */               \
     using IndexContainer    = typename Traits::IndexContainer; /*!< Container for indices used inside the KdTree     */ \
     using IndexContainerRef = typename Traits::IndexContainerRef; /*!< Ref type to index container */
 
@@ -29,9 +31,7 @@ namespace Ponca
     template <typename _Traits>
     struct NeighborGraphBufferBase
     {
-        using Traits         = _Traits;
-        using PointContainer = typename Traits::PointContainer;
-        using IndexContainer = typename Traits::IndexContainer;
+        WRITE_NEIGHBOR_GRAPH_ALIASES
 
         /// \brief Buffer storing the input points (read only)
         PointContainer points;
@@ -47,11 +47,10 @@ namespace Ponca
         PONCA_MULTIARCH inline NeighborGraphBufferBase() = default;
 
         /// \brief Default constructor setting the point container
-        PONCA_MULTIARCH inline NeighborGraphBufferBase(PointContainer _points) : points(_points) {}
+        PONCA_MULTIARCH inline NeighborGraphBufferBase(PointContainerConstRef _points) : points(_points) {}
 
         /// \brief Constructor allowing to set all the attributes
-        PONCA_MULTIARCH inline NeighborGraphBufferBase(PointContainer _points,
-                                                       typename Traits::IndexContainerRef _indices,
+        PONCA_MULTIARCH inline NeighborGraphBufferBase(PointContainerConstRef _points, IndexContainerRef _indices,
                                                        const size_t _points_size, const size_t _indices_size)
             : points(_points), indices(_indices), points_size(_points_size), indices_size(_indices_size)
         {

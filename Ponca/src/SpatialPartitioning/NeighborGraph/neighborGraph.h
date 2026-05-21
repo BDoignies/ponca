@@ -30,7 +30,7 @@ namespace Ponca
         IndexContainer ranges;
 
         PONCA_MULTIARCH inline NeighborGraphBuffer() = default;
-        PONCA_MULTIARCH inline NeighborGraphBuffer(PointContainer _points) : Base(_points) {}
+        PONCA_MULTIARCH inline NeighborGraphBuffer(PointContainerConstRef _points) : Base(_points) {}
         PONCA_MULTIARCH inline NeighborGraphBuffer(PointContainer _points, typename Traits::IndexContainerRef _indices,
                                                    const size_t _points_size, const size_t _indices_size,
                                                    typename Traits::IndexContainerRef _ranges)

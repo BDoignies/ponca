@@ -49,6 +49,8 @@ namespace Ponca
         using IndexType = int;
         /// \brief Type used to store the external Point container in AbstractNeighborGraph::Buffers
         using PointContainer = const std::vector<DataPoint>&;
+        /// \brief Convenience alias used to convey the constness and the absence of copy of the container
+        using PointContainerConstRef = PointContainer;
         /// \brief Type used to store the index container in the AbstractNeighborGraph::Buffers
         using IndexContainer = std::vector<IndexType>;
         /// \brief Type to be used to send the index container as function parameter
@@ -107,6 +109,8 @@ namespace Ponca
         /// \brief Type used to store the external Point container in AbstractNeighborGraph::Buffers
         /// Non-const to allow AbstractNeighborGraph::Buffers copy and writing to other devices
         using PointContainer = DataPoint*;
+        /// \brief Convenience alias used to convey the constness and the absence of copy of the container
+        using PointContainerConstRef = PointContainer;
         /// \brief Type used to store the index container in the AbstractNeighborGraph::Buffers
         using IndexContainer = IndexType*;
         /// \brief Type to be used to send the index container as function parameter
