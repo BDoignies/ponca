@@ -130,7 +130,7 @@ namespace Ponca
      * \tparam Base Base class that provides, through the CRTP the init, startNewPass, addNeighbor and finalize methods
      */
     template <typename _Derived, typename _Base>
-    struct BasketComputeObject : public ComputeObject<_Derived>, public virtual _Base
+    struct BasketComputeObject : public ComputeObject<_Derived>, public _Base
     {
         using Base    = _Base;    /// <\brief Alias to the Base type
         using Derived = _Derived; /// \brief Alias to the Derived type
@@ -195,10 +195,102 @@ namespace Ponca
         }
     };
 
+    /*!
+     * Base ComputeObject for the BasketDiff classes
+     *
+     * Implements the compute methods for fitting: #compute, #computeWithIds, ...
+     * Checkout \ref fitting for more details
+     *
+     * The various implementations of Ponca::Concept are mixed through specializations of the BasketDiff and Basket
+     *   classes:
+     *   \code
+     *   using myFitDer =
+     *   BasketDiff <BasketType,           // Existing Basket, to be differentiated
+     *   DiffType,                         // Differentiation space: FitScaleDer, FitSpaceDer, or
+     * FitScaleDer|FitSpaceDer ComputationalDerivativesConcept1, // Implementation of ComputationalDerivativesConcept
+     *   ComputationalDerivativesConcept2, // Implementation of ComputationalDerivativesConcept
+     *   ... ,                             //
+     *   >;                                // Final structure to fit and derive a primitive over weighted samples
+     *   \endcode
+     *
+     * \tparam Derived Derived class that provides the addNeighbor method (either Basket or BasketDiff)
+     * \tparam Base Base class that provides, through the CRTP the init, startNewPass, addNeighbor and finalize methods
+     */
+    template <typename _Derived, typename _Basket, typename _Base>
+    struct BasketDiffComputeObject : public ComputeObject<_Derived>, public _Base
+    {
+        using Base    = _Base;    /// <\brief Alias to the Base type
+        using Derived = _Derived; /// \brief Alias to the Derived type
+        using Scalar  = typename Base::Scalar;
+        using Basket  = _Basket;
+        using BasketComputeObject = typename Basket::ComputeObjectType;
+
+    protected:
+        using ComputeObject<Derived>::derived;
+
+    public:
+        using ComputeObject<Derived>::compute; // Makes the default compute(container) accessible when using a CPU
+                                               // architecture
+
+        /*!
+         * \brief Convenience function for STL-like iterators
+         * Add neighbors stored in a container using STL-like iterators, and call finalize at the end.
+         * The fit is evaluated multiple time if needed (see #NEED_OTHER_PASS)
+         * \see addNeighbor()
+         */
+        template <typename IteratorBegin, typename IteratorEnd>
+        PONCA_MULTIARCH inline FIT_RESULT compute(const IteratorBegin& begin, const IteratorEnd& end)
+        {
+            Base::init();
+            FIT_RESULT res = UNDEFINED;
+
+            do
+            {
+                derived().startNewPass();
+                for (auto it = begin; it != end; ++it)
+                {
+                    derived().addNeighbor(*it);
+                }
+                res = Base::finalize();
+            } while (res == NEED_OTHER_PASS);
+
+            return res;
+        }
+
+        /*!
+         * \brief Convenience function to iterate over a subset of samples in a PointContainer
+         * Add neighbors stored in a PointContainer and sampled using indices stored in ids.
+         * \tparam IndexRange STL-Like range storing indices of the neighbors
+         * \tparam PointContainer STL-like container storing the points
+         * \see #compute(const IteratorBegin& begin, const IteratorEnd& end)
+         */
+        template <typename IndexRange, typename PointContainer>
+        PONCA_MULTIARCH inline FIT_RESULT computeWithIds(IndexRange ids, const PointContainer& points)
+        {
+            Base::init();
+            FIT_RESULT res = UNDEFINED;
+
+            do
+            {
+                derived().startNewPass();
+                for (const auto& i : ids)
+                {
+                    derived().addNeighbor(points[i]);
+                }
+                res = Base::finalize();
+            } while (res == NEED_OTHER_PASS);
+
+            return res;
+        }
+   };
+
 #define WRITE_COMPUTE_FUNCTIONS                     \
     using BasketComputeObject<Self, Base>::compute; \
     using BasketComputeObject<Self, Base>::computeWithIds;
 
+#define WRITE_DIFF_COMPUTE_FUNCTIONS \
+    using BasketDiffComputeObject<Self, BasketType, Base>::compute; \
+    using BasketDiffComputeObject<Self, BasketType, Base>::computeWithIds;
     /*!
          \brief Aggregator class used to declare specialized structures with derivatives computations, using CRTP
          \copydoc BasketComputeObject
@@ -210,7 +302,7 @@ namespace Ponca
     template <typename BasketType, int Type, template <class, class, int, typename> class Ext0,
               template <class, class, int, typename> class... Exts>
     class BasketDiff
-        : public BasketComputeObject<BasketDiff<BasketType, Type, Ext0, Exts...>,
+        : public BasketDiffComputeObject<BasketDiff<BasketType, Type, Ext0, Exts...>, BasketType,
                                      typename internal::BasketDiffAggregate<BasketType, Type, Ext0, Exts...>::type>
     {
     private:
@@ -224,7 +316,7 @@ namespace Ponca
         using DataPoint = BSKP;
         /// Scalar type used for computation, as defined from Basket
         using Scalar = typename BasketType::Scalar;
-        WRITE_COMPUTE_FUNCTIONS
+        WRITE_DIFF_COMPUTE_FUNCTIONS
 
         /// \copydoc Basket::addNeighbor
         PONCA_MULTIARCH inline bool addNeighbor(const DataPoint& _nei)
@@ -268,6 +360,7 @@ namespace Ponca
         using DataPoint = P;
         /// Weighting function
         using NeighborFilter = NF;
+        using ComputeObjectType = BasketComputeObject<Basket<P, NF, Ext0, Exts...>, typename internal::BasketAggregate<P, NF, Ext0, Exts...>::type>;
 
         WRITE_COMPUTE_FUNCTIONS
 
