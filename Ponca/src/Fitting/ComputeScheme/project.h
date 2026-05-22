@@ -6,6 +6,8 @@
 #pragma once
 #include "../concepts.h"
 
+#include <algorithm> // std::min
+
 namespace Ponca
 {
     /**
