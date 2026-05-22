@@ -114,6 +114,41 @@ namespace Ponca
         PONCA_MULTIARCH inline ScalarArray dPotential() const;
         PONCA_MULTIARCH inline VectorArray dNormal() const;
 
+        /*! \brief compute  the square of the Pratt norm derivative */
+        PONCA_MULTIARCH [[nodiscard]] inline ScalarArray dprattNorm2() const
+        {
+            return Scalar(2.) * Base::m_ul.transpose() * m_dUl - Scalar(4.) * Base::m_uq * m_dUc -
+                   Scalar(4.) * Base::m_uc * m_dUq;
+        }
+
+        /*! \brief compute the square of the Pratt norm derivative for dimension _d */
+        PONCA_MULTIARCH [[nodiscard]] inline Scalar dprattNorm2(unsigned int _d) const
+        {
+            return Scalar(2.) * m_dUl.col(_d).dot(Base::m_ul) - Scalar(4.) * m_dUc.col(_d)[0] * Base::m_uq -
+                   Scalar(4.) * m_dUq.col(_d)[0] * Base::m_uc;
+        }
+
+        /*! \brief compute the Pratt norm derivative for the dimension _d */
+        PONCA_MULTIARCH [[nodiscard]] inline Scalar dprattNorm(unsigned int _d) const
+        {
+            PONCA_MULTIARCH_STD_MATH(sqrt);
+            return sqrt(dprattNorm2(_d));
+        }
+
+        /*! \brief compute the Pratt norm derivative */
+        PONCA_MULTIARCH [[nodiscard]] inline ScalarArray dprattNorm() const
+        {
+            PONCA_MULTIARCH_STD_MATH(sqrt);
+            return dprattNorm2().array().sqrt();
+        }
+        //! Normalize the scalar field by the Pratt norm
+        /*!
+            \warning Requires that isNormalized() return false
+            \return false when the original sphere has already been normalized.
+        */
+        PONCA_MULTIARCH [[nodiscard]] inline bool applyPrattNorm();
+
+
     }; // class UnorientedSphereDerImpl
 
     template <class DataPoint, class _NFilter, int DiffType, typename T>

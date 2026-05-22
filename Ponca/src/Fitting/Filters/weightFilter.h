@@ -264,6 +264,10 @@ namespace Ponca
                 return MatrixType::Zero();
             }
 
+            
+            /*! \brief Access to the evaluation scale set during the initialization */
+            PONCA_MULTIARCH [[nodiscard]] inline Scalar evalScale() const { return Scalar(1.); }
+
             /*!
                 \brief First order derivative in scale  \f$t\f$, which are always $0$
                 \param _q Query in global coordinate
