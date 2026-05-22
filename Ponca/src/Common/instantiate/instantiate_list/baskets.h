@@ -5,7 +5,9 @@
 */
 #if defined(_PONCA_INSTANTIATE_SCALESPACEDER) || defined(_PONCA_INSTANTIATE_ALL)
 #    define _DT FitScaleSpaceDer
+#    define _ScaleDer
 #    include "basketsdiff.h"
+#    undef _ScaleDer
 #    undef _DT
 #endif
 #if defined(_PONCA_INSTANTIATE_SPACEDER) || defined(_PONCA_INSTANTIATE_ALL)
