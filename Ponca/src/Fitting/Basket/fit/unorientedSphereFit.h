@@ -148,7 +148,6 @@ namespace Ponca
         */
         PONCA_MULTIARCH [[nodiscard]] inline bool applyPrattNorm();
 
-
     }; // class UnorientedSphereDerImpl
 
     template <class DataPoint, class _NFilter, int DiffType, typename T>

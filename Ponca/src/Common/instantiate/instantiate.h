@@ -10,14 +10,14 @@
 #    ifdef _MSC_VER
 #        define _PONCA_API __declspec(dllexport)
 #    else
-#        define _PONCA_API 
+#        define _PONCA_API
 #    endif
 #else
 #    define _INSTANTIATE_PONCA_EXTERN extern
 #    ifdef _MSC_VER
 #        define _PONCA_API __declspec(dllimport)
 #    else
-#        define _PONCA_API 
+#        define _PONCA_API
 #    endif
 #endif
 

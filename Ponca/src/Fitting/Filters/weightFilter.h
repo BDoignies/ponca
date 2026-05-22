@@ -264,7 +264,6 @@ namespace Ponca
                 return MatrixType::Zero();
             }
 
-            
             /*! \brief Access to the evaluation scale set during the initialization */
             PONCA_MULTIARCH [[nodiscard]] inline Scalar evalScale() const { return Scalar(1.); }
 
