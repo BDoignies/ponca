@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.18) # Required for cuda++-20
+
 project(Ponca_Examples_cuda LANGUAGES CXX)
 
 include(CheckLanguage)
