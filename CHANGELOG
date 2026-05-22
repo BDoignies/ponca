@@ -6,6 +6,7 @@ Current head (v.2.0.alpha3 RC)
 This release will introduce a refactoring of the requirement library using cpp20::concepts.
 
 - API
+    - [all] refactoring of the requirement library using cpp20::concepts (#293)
     - [fitting] MLS is now a separate class from Basket (#298)
     - [fitting] projectDescent is now a separate class from Basket (#298)
     - [spatialPartitioning] Rework KnnGraph API for compilation and query on the GPU (#301,#325)
@@ -164,7 +165,7 @@ v.1.4
 
 - API
     - [fitting] Refactor the Weighting function initialization to avoid misuse (#167)
-    - [fitting] Add class NoWeightFunc to skip weight computation (#144)
+    - [fitting] Add class NoWeightFilter to skip weight computation (#144)
     - [fitting] Add ComputeObject and changed basket to inherit the compute methods from it (#188)
     - [fitting] Add features in CovarianceFitBase (#191)
     - [fitting] Generalised smooth weight kernel to any dimension (#159)
