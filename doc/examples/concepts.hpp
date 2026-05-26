@@ -38,8 +38,8 @@ namespace Ponca
 
         //! [ComputationalObjectConcept]
         template <class DataPoint, class _NFilter, typename T = void>
-            requires ProvidesREQUIREMENT_1<T> && ProvidesREQUIREMENT_2<T>...
-        class ComputationalObjectConcept
+            requires ProvidesREQUIREMENT_1<T> && ProvidesREQUIREMENT_2<T>
+        ... class ComputationalObjectConcept
         {
             // Defines common types (Base, Scalar, VectorType, NeighborFilter)
             PONCA_FITTING_DECLARE_DEFAULT_TYPES
@@ -190,7 +190,7 @@ namespace Ponca
             PONCA_MULTIARCH inline VectorType scaleSpaced2w(const VectorType& _q, const DataPoint& _attributes) const;
         };
         //! [FilterConcept]
-    
+
         //! [WeightKernelConcept]
         // \brief Concept of a 1D weighting function and its derivatives.
         template <typename _Scalar>
