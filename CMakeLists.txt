@@ -134,7 +134,7 @@ set(PONCA_src_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/")
 include(PoncaConfigureFitting)
 include(PoncaConfigureCommon)
 include(PoncaConfigureSpatialPartitioning)
-include(PoncaConfigurePrecompiled)
+include(PoncaConfigureInstantiate)
 
 install(DIRECTORY ${PONCA_src_ROOT}/Ponca
     DESTINATION include/

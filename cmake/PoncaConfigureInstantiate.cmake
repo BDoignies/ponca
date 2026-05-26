@@ -1,11 +1,3 @@
-set(ponca_Precompiled_PRECOMPILED
-    "${PONCA_src_ROOT}/Ponca/src/Precompiled/precompiled.h"
-)
-
-set(ponca_Precompiled_INCLUDE
-    "${PONCA_src_ROOT}/Ponca"
-)
-
 set(ponca_Precompiled_SRC
     "${PONCA_src_ROOT}/Ponca/Instantiate"
     "${PONCA_src_ROOT}/Ponca/src/Common/instantiate/instantiate.cpp"
