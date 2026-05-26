@@ -134,7 +134,7 @@ namespace Ponca
      * \tparam Base Base class that provides, through the CRTP the init, startNewPass, addNeighbor and finalize methods
      */
     template <typename _Derived, typename _Base>
-    struct BasketComputeObject : public ComputeObject<_Derived>, public virtual _Base
+    struct BasketComputeObject : public ComputeObject<_Derived>, public _Base
     {
         using Base    = _Base;    /// <\brief Alias to the Base type
         using Derived = _Derived; /// \brief Alias to the Derived type
