@@ -56,6 +56,7 @@ namespace Ponca
 
     template <class P, class NF, template <class, class, typename> class Ext0,
               template <class, class, typename> class... Exts>
+        requires IsPoint<P>
     PONCA_MULTIARCH void Basket<P, NF, Ext0, Exts...>::init()
     {
         Base::init();
@@ -63,6 +64,7 @@ namespace Ponca
 
     template <class P, class NF, template <class, class, typename> class Ext0,
               template <class, class, typename> class... Exts>
+        requires IsPoint<P>
     PONCA_MULTIARCH void Basket<P, NF, Ext0, Exts...>::startNewPass()
     {
         Base::startNewPass();
@@ -70,6 +72,7 @@ namespace Ponca
 
     template <class P, class NF, template <class, class, typename> class Ext0,
               template <class, class, typename> class... Exts>
+        requires IsPoint<P>
     PONCA_MULTIARCH FIT_RESULT Basket<P, NF, Ext0, Exts...>::finalize()
     {
         return Base::finalize();
@@ -77,6 +80,7 @@ namespace Ponca
 
     template <class P, class NF, template <class, class, typename> class Ext0,
               template <class, class, typename> class... Exts>
+        requires IsPoint<P>
     PONCA_MULTIARCH bool Basket<P, NF, Ext0, Exts...>::addNeighbor(const P& _nei)
     {
         // compute weight
@@ -92,6 +96,7 @@ namespace Ponca
 
     template <class P, class NF, template <class, class, typename> class Ext0,
               template <class, class, typename> class... Exts>
+        requires IsPoint<P>
     PONCA_MULTIARCH void Basket<P, NF, Ext0, Exts...>::addLocalNeighbor(typename P::Scalar _w,
                                                                         const typename P::VectorType& _localQ,
                                                                         const P& _nei)

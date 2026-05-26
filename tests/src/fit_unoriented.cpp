@@ -131,13 +131,8 @@ void callSubTests()
     typedef Basket<Point, WeightSmoothFunc, UnorientedSphereFit, GLSParam> FitSmoothUnoriented;
     typedef Basket<Point, WeightConstantFunc, UnorientedSphereFit, GLSParam> FitConstantUnoriented;
 
-<<<<<<< HEAD
     typedef BasketDiff<FitSmoothUnoriented, FitScaleSpaceDer, UnorientedSphereDer, NormalDerivativeWeingartenEstimator,
                        WeingartenCurvatureEstimatorDer>
-=======
-    typedef BasketDiff<FitSmoothUnoriented, FitScaleSpaceDer, UnorientedSphereDer, GLSDer, CurvatureEstimatorDer,
-                       NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>
->>>>>>> 92309f438 ([tests] Use precompiled target)
         FitSmoothUnorientedDiff;
 
     cout << "Testing with perfect sphere (unoriented)..." << endl;

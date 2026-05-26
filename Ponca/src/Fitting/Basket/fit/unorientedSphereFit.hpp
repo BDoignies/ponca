@@ -213,6 +213,7 @@ namespace Ponca
     }
 
     template <class DataPoint, class _NFilter, int DiffType, typename T>
+        requires UNORIENTED_SPHERE_DER_REQUIREMENTS
     bool UnorientedSphereDerImpl<DataPoint, _NFilter, DiffType, T>::applyPrattNorm()
     {
         if (Base::isNormalized())

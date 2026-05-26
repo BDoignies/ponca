@@ -32,21 +32,18 @@
 #if _D == 3
 
 _PONCA_BASKET_DIFF_X("CovariancePlaneCurvatureEstimator", "",
-                     BasketDiff<Basket<_P, _NF, CovariancePlaneFit>, _DT, CovariancePlaneDer, CurvatureEstimatorDer,
+                     BasketDiff<Basket<_P, _NF, CovariancePlaneFit>, _DT, CovariancePlaneDer,
                                 NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>)
 #    if defined(_Normal) && defined(_ScaleDer)
-_PONCA_BASKET_DIFF_X(
-    "OrientedSphereCurvatureEstimator", "",
-    BasketDiff<Basket<_P, _NF, OrientedSphereFit, GLSParam>, _DT, OrientedSphereDer, GLSDer, CurvatureEstimatorDer,
-               NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>)
-_PONCA_BASKET_DIFF_X(
-    "UnorientedSphereCurvatureEstimator", "",
-    BasketDiff<Basket<_P, _NF, UnorientedSphereFit, GLSParam>, _DT, UnorientedSphereDer, GLSDer, CurvatureEstimatorDer,
-               NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>)
-_PONCA_BASKET_DIFF_X(
-    "ASOCurvatureEstimator", "",
-    BasketDiff<Basket<_P, _NF, OrientedSphereFit, GLSParam>, _DT, OrientedSphereDer, GLSDer, MlsSphereFitDer,
-               CurvatureEstimatorDer, NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>)
+_PONCA_BASKET_DIFF_X("OrientedSphereCurvatureEstimator", "",
+                     BasketDiff<Basket<_P, _NF, OrientedSphereFit, GLSParam>, _DT, OrientedSphereDer, GLSDer,
+                                NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>)
+_PONCA_BASKET_DIFF_X("UnorientedSphereCurvatureEstimator", "",
+                     BasketDiff<Basket<_P, _NF, UnorientedSphereFit, GLSParam>, _DT, UnorientedSphereDer, GLSDer,
+                                NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>)
+_PONCA_BASKET_DIFF_X("ASOCurvatureEstimator", "",
+                     BasketDiff<Basket<_P, _NF, OrientedSphereFit, GLSParam>, _DT, OrientedSphereDer, GLSDer,
+                                MlsSphereFitDer, NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>)
 #    endif
 #endif
 
