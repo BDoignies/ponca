@@ -191,6 +191,7 @@ namespace Ponca
         };
         //! [FilterConcept]
     
+        //! [WeightKernelConcept]
         // \brief Concept of a 1D weighting function and its derivatives.
         template <typename _Scalar>
         class WeightKernelConcept
