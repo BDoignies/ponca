@@ -57,7 +57,8 @@ struct KdTreeKNearestNeighborsFunctor
 {
 
     static __device__ inline auto query(KdTreeGPU<DataPoint>& d_kdtree, int i, typename DataPoint::Scalar analysisScale,
-        const int k = 40) -> Ponca::KdTreeKNearestIndexQuery<Ponca::KdTreePointerTraits<DataPoint>>
+                                        const int k = 40)
+        -> Ponca::KdTreeKNearestIndexQuery<Ponca::KdTreePointerTraits<DataPoint>>
     {
         //! [Use KdTree.kNearestNeighbors on the GPU]
         return d_kdtree.kNearestNeighbors(i, k);
@@ -156,15 +157,16 @@ void deepCopyKdTreeBuffersToDevice(const KdTreeBuffers& hostBuffers, // Input
                                    StaticKdTreeBuffers* const deviceBuffers // Outputs
 )
 {
-    deepCopyBuffersToDevice<Traits>( hostBuffers, [&]() {
+    deepCopyBuffersToDevice<Traits>(
+        hostBuffers,
+        [&]() {
             using NodeType = typename Traits::NodeType; ///< Type of nodes used inside the KdTree
             hostBuffersHoldingDevicePointers.nodes_size = hostBuffers.nodes_size;
             CUDA_CHECK(cudaMalloc(&hostBuffersHoldingDevicePointers.nodes, hostBuffers.nodes_size * sizeof(NodeType)));
             CUDA_CHECK(cudaMemcpy(hostBuffersHoldingDevicePointers.nodes, hostBuffers.nodes.data(),
                                   hostBuffers.nodes_size * sizeof(NodeType), cudaMemcpyHostToDevice));
         },
-        hostBuffersHoldingDevicePointers, deviceBuffers
-    );
+        hostBuffersHoldingDevicePointers, deviceBuffers);
 }
 
 /*! \brief Converts and uploads the internal data of the KnnGraph Buffers structure to the device using raw memory
@@ -182,17 +184,14 @@ void deepCopyKdTreeBuffersToDevice(const KdTreeBuffers& hostBuffers, // Input
  * \see freeBuffersOnDevice to free memory on the device with hostBuffersHoldingDevicePointers as an argument
  */
 template <typename Traits, typename KnnGraphBuffers, typename StaticKnnGraphBuffers>
-void deepCopyKnnGraphBuffersToDevice(
-    const KnnGraphBuffers& hostBuffers, // Input
-    StaticKnnGraphBuffers& hostBuffersHoldingDevicePointers,
-    StaticKnnGraphBuffers* const deviceBuffers // Outputs
+void deepCopyKnnGraphBuffersToDevice(const KnnGraphBuffers& hostBuffers, // Input
+                                     StaticKnnGraphBuffers& hostBuffersHoldingDevicePointers,
+                                     StaticKnnGraphBuffers* const deviceBuffers // Outputs
 )
 {
-    deepCopyBuffersToDevice<Traits>( hostBuffers, [&]() {
-        hostBuffersHoldingDevicePointers.k = hostBuffers.k;
-        },
-        hostBuffersHoldingDevicePointers, deviceBuffers
-    );
+    deepCopyBuffersToDevice<Traits>(
+        hostBuffers, [&]() { hostBuffersHoldingDevicePointers.k = hostBuffers.k; }, hostBuffersHoldingDevicePointers,
+        deviceBuffers);
 }
 
 /*! \brief Free the memory array internal to the Buffers on the device.
@@ -231,10 +230,11 @@ void freeKnnGraphBuffersOnDevice(const StaticKnnGraphBuffers& hostBuffersHolding
  * \param gradientResults As an Output, the primitiveGradient results of the fit for each point of the Point Cloud.
  */
 template <typename SpatialPartitioning, typename Fit, typename SpatialPartitioningQueryFunctor>
-__global__ void spatialPartitioningFitPotentialAndGradientKernel(typename SpatialPartitioning::Buffers* const buffers,
-                                              const typename SpatialPartitioning::DataPoint::Scalar analysisScale,
-                                              typename SpatialPartitioning::DataPoint::Scalar* const potentialResults,
-                                              typename SpatialPartitioning::DataPoint::Scalar* const gradientResults)
+__global__ void spatialPartitioningFitPotentialAndGradientKernel(
+    typename SpatialPartitioning::Buffers* const buffers,
+    const typename SpatialPartitioning::DataPoint::Scalar analysisScale,
+    typename SpatialPartitioning::DataPoint::Scalar* const potentialResults,
+    typename SpatialPartitioning::DataPoint::Scalar* const gradientResults)
 {
     using DataPoint  = typename SpatialPartitioning::DataPoint;
     using VectorType = typename DataPoint::VectorType;
