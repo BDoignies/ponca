@@ -33,6 +33,7 @@ This release will introduce a refactoring of the requirement library using cpp20
 - CI/Actions
     - [ci] Fix Issue with Eigen build in buildAsSubmodule (#299)
     - [ci] New github action for checking CPM installation (#302)
+    - [ci] Formatter now checks for cuda files (#332, #315)
 
 - Examples
     - [spatialPartitioning] Add a cuda example with the KnnGraph (#301, #323)
