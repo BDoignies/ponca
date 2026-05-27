@@ -33,7 +33,7 @@ __host__ void testPlaneCuda(const bool _bUnoriented = false, const bool _bAddPos
                             const bool _bAddNormalNoise = false)
 {
     using DataPoint        = Ponca::PointPositionNormal<Scalar, Dim>;
-    using WeightSmoothFunc = Ponca::DistWeightFilter<DataPoint, Ponca::SmoothWeightKernel<Scalar> >;
+    using WeightSmoothFunc = Ponca::DistWeightFilter<DataPoint, Ponca::SmoothWeightKernel<Scalar>>;
     using MeanFitSmooth    = Ponca::Basket<DataPoint, WeightSmoothFunc, Ponca::MeanPlaneFit>;
     using VectorType       = typename DataPoint::VectorType;
 
