@@ -9,6 +9,7 @@ This release will introduce a refactoring of the requirement library using cpp20
     - [all] refactoring of the requirement library using cpp20::concepts (#293)
     - [fitting] MLS is now a separate class from Basket (#298)
     - [fitting] projectDescent is now a separate class from Basket (#298)
+    - [fitting] Add prattNorm derivatives in UnorientedSphereFit (#304)
     - [spatialPartitioning] Rework KnnGraph API for compilation and query on the GPU (#301,#325)
     - [spatialPartitioning] Replace KnnGraph query containers with custom Stack and HashSet structure (#301,#325)
     - [spatialPartitioning] Fix a bug when re-building an existing KdTree (#320)
@@ -18,6 +19,8 @@ This release will introduce a refactoring of the requirement library using cpp20
 - Bug-fixes and code improvements
     - [fitting] Fix warnings introduced when bumping to cxx20 (#303)
     - [fitting] Fix CNC not using the DistWeightFunc (#316)
+    - [fitting] Fix compilation error in HeighField::operator==() (#304)
+    - [fitting] Fix compilation error in NoWeightFilterBase (#304)
     - [spatialPartitioning] Fix regression introduced by the CUDA kdtree update (#306)
     - [common] Fix PONCA_ASSERT macro on MSVC and clang (#309)
     - [common] Adapt PONCA_ASSERT macro to CUDA (#311)
