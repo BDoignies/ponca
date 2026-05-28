@@ -1,9 +1,14 @@
 Ponca changelog
 
+--------------------------------------------------------------------------------
+Current head (v.2.0.alpha4 RC)
+
 
 --------------------------------------------------------------------------------
 Current head (v.2.0.alpha3 RC)
-This release will introduce a refactoring of the requirement library using cpp20::concepts.
+This release introduces major technical refactorings: modification of the requirement library using cpp20::concepts,
+new build-chain to instantiate the most common types of the library, an explicit support for SYCL, a generalization of
+the kNNGraphs to NeighborGraphs, and several bug-fixes and other improvements.
 
 - API
     - [all] refactoring of the requirement library using cpp20::concepts (#293)
