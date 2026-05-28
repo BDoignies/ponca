@@ -15,7 +15,6 @@
 #include <vector>
 
 #include <Ponca/Ponca>
-#include <Ponca/Ponca>
 
 using namespace Eigen;
 using namespace std;

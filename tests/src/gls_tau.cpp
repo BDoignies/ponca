@@ -13,7 +13,6 @@
 #include "../common/testUtils.h"
 
 #include <Ponca/Ponca>
-#include <Ponca/Ponca>
 
 #include <vector>
 

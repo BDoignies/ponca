@@ -17,7 +17,6 @@
 #include "./nanoflann.hpp"
 
 #include <Ponca/Ponca>
-#include <Ponca/Ponca>
 
 using namespace Ponca;
 

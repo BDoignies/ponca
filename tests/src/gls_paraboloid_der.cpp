@@ -19,7 +19,6 @@
 #include <fstream>
 
 #include <Ponca/Ponca>
-#include <Ponca/Ponca>
 
 #include <vector>
 

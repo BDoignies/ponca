@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <Ponca/Instantiate>
 #include <Ponca/Ponca>
 
 #include "pcl_wrapper.h"

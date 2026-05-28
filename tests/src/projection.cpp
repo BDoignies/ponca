@@ -15,7 +15,6 @@
 #include "../common/testing.h"
 
 #include <Ponca/Ponca>
-#include <Ponca/Ponca>
 
 #include <chrono>
 #include <math.h>

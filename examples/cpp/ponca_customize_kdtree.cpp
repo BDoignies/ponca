@@ -12,7 +12,6 @@
 #include <iostream>
 #include <optional>
 #include <Ponca/Ponca>
-#include <Ponca/Ponca>
 
 using DataPoint = Ponca::PointPosition<float, 3>;
 
