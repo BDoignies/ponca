@@ -375,9 +375,9 @@ ponca/Ponca/src/Fitting/Basket/basket.h:53:19: note: constraints not satisfied
 
   After fitting, this object provides access to both the plane and the sphere, through the respective cast operators #AlgebraicSphere::algebraicSphere() and #Plane::plane().
 
-  \section fitting_cuda Cuda
+  \section fitting_cuda Cuda and SYCL
   Ponca can be used directly on GPU, thanks to several mechanisms:
-   - Eigen Cuda capabilities, see <a href="http://eigen.tuxfamily.org/dox-devel/TopicCUDA.html"  target="_blank">Eigen documentation</a> for more details.
+   - Eigen capabilities, see <a href="http://eigen.tuxfamily.org/dox-devel/TopicCUDA.html"  target="_blank">Eigen documentation</a> for more details.
    You *need* to use a consistent `Eigen::Index` on both CPU and GPU if you plan to transfer memory between the computing units.
    That's why we recommend to set the following preprocessor variable when compiling your project:
    \code -DEIGEN_DEFAULT_DENSE_INDEX_TYPE=int\endcode
@@ -394,7 +394,7 @@ ponca/Ponca/src/Fitting/Basket/basket.h:53:19: note: constraints not satisfied
   \endcode
   to use the same code for C++ and CUDA. It has no effect when the code is compiled with GCC or Clang, but it will force the compilation for both host and device architectures when compiling with nvcc. A similar macro system is provided for mathematical functions, to switch between STL and CUDA versions.
 
-  Check the \ref cu_ssgl_intro_sec "C++/Cuda" and \ref example_python_ssc_page "Python/Cuda" (using PyCuda) examples for more details and how-to.
+  Check the \ref cu_ssgl_intro_sec "C++/Cuda", the \ref example_python_ssc_page "Python/Cuda" (using PyCuda), \ref example_sycl_basic and \ref example_sycl_kdtree examples for more details and how-to.
 
   <hr>
   <center>[\ref fitting_concepts "Go to concept page"]</center>
