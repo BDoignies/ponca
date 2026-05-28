@@ -15,8 +15,8 @@
 #include "../common/testUtils.h"
 #include "../split_test_helper.h"
 
-#include <Ponca/Fitting>
-#include <Ponca/SpatialPartitioning>
+#include <Ponca/Ponca>
+
 #include <vector>
 
 using namespace std;

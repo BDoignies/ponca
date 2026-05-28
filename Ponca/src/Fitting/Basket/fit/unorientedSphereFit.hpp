@@ -212,4 +212,25 @@ namespace Ponca
         return dgrad / norm - Base::m_ul * (Base::m_ul.transpose() * dgrad) / norm3;
     }
 
+    template <class DataPoint, class _NFilter, int DiffType, typename T>
+        requires UNORIENTED_SPHERE_DER_REQUIREMENTS
+    bool UnorientedSphereDerImpl<DataPoint, _NFilter, DiffType, T>::applyPrattNorm()
+    {
+        if (Base::isNormalized())
+            return false; // need original parameters without Pratt Normalization
+
+        PONCA_MULTIARCH_STD_MATH(sqrt);
+        Scalar pn2 = Base::prattNorm2();
+        Scalar pn  = sqrt(pn2);
+
+        ScalarArray dpn2   = dprattNorm2();
+        ScalarArray factor = Scalar(0.5) * dpn2 / pn;
+
+        m_dUc = (m_dUc * pn - Base::m_uc * factor) / pn2;
+        m_dUl = (m_dUl * pn - Base::m_ul * factor) / pn2;
+        m_dUq = (m_dUq * pn - Base::m_uq * factor) / pn2;
+
+        Base::applyPrattNorm();
+        return true;
+    }
 } // namespace Ponca

@@ -14,7 +14,7 @@
 
 #include "../split_test_helper.h"
 
-#include <Ponca/Fitting>
+#include <Ponca/Ponca>
 #include <vector>
 
 using namespace std;

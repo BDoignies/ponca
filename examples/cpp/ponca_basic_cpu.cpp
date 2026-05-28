@@ -12,13 +12,9 @@
 
 #include <algorithm>
 #include <iostream>
-
-#include <Ponca/Fitting>
-#include <Ponca/SpatialPartitioning>
-#include <Ponca/src/Common/pointTypes.h>
-#include <Ponca/src/Common/pointGeneration.h>
-
 #include <vector>
+
+#include <Ponca/Ponca>
 
 using namespace std;
 using namespace Ponca;

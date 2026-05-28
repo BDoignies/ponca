@@ -12,10 +12,7 @@
 
 #include <iostream>
 
-#include <Ponca/Fitting>
-#include <Ponca/src/Common/pointTypes.h>
-
-#include "Eigen/Eigen"
+#include <Ponca/Ponca>
 
 using namespace std;
 using namespace Ponca;
