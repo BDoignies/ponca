@@ -7,6 +7,7 @@ This release will introduce a refactoring of the requirement library using cpp20
 
 - API
     - [all] refactoring of the requirement library using cpp20::concepts (#293)
+    - [sycl] demonstrate the use of the library in SYCL kernels (#312)
     - [fitting] MLS is now a separate class from Basket (#298)
     - [fitting] projectDescent is now a separate class from Basket (#298)
     - [fitting] Add prattNorm derivatives in UnorientedSphereFit (#304)
@@ -21,6 +22,7 @@ This release will introduce a refactoring of the requirement library using cpp20
     - [fitting] Fix CNC not using the DistWeightFunc (#316)
     - [fitting] Fix compilation error in HeighField::operator==() (#304)
     - [fitting] Fix compilation error in NoWeightFilterBase (#304)
+    - [fitting] Remove virtual inheritance for BasketComputeObject (#312)
     - [spatialPartitioning] Fix regression introduced by the CUDA kdtree update (#306)
     - [common] Fix PONCA_ASSERT macro on MSVC and clang (#309)
     - [common] Adapt PONCA_ASSERT macro to CUDA (#311)
@@ -39,10 +41,12 @@ This release will introduce a refactoring of the requirement library using cpp20
     - [ci] Fix Issue with Eigen build in buildAsSubmodule (#299)
     - [ci] New github action for checking CPM installation (#302)
     - [ci] Formatter now checks for cuda files (#332, #315)
+    - [sycl] add AdaptiveCPP in CI to compile examples (#312)
 
 - Examples
     - [spatialPartitioning] Add a cuda example with the KnnGraph (#301, #323)
     - [cuda] Update cmake_minimum_requirement to 3.18 for cuda examples (#328)
+    - [sycl] add SYCL example (#312)
 
 - Docs
     - [doc] Add documentation about CPM installation for ponca (#302)
