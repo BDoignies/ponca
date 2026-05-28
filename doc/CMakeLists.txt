@@ -38,6 +38,8 @@ if(DOXYGEN_FOUND)
       ${CMAKE_CURRENT_SOURCE_DIR}/src/example_cu_ssc.mdoc
       ${CMAKE_CURRENT_SOURCE_DIR}/src/example_cu_kdtree.mdoc
       ${CMAKE_CURRENT_SOURCE_DIR}/src/example_python_ssc.mdoc
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/example_sycl_basic.mdoc
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/example_sycl_kdtree.mdoc
       )
   add_custom_target(ponca-doc-doxygen
                     SOURCES ${doc_file_list}
