@@ -31,7 +31,7 @@
   
   \subsection getting_started_installation_cmakesubdirectory_subsec Use as cmake subdirectory
 
-  Since version 0.2, Ponca can be included in existing cmake projects using `add_subdirectory`, as demonstrated at
+  Ponca can be included in existing cmake projects using `add_subdirectory`, as demonstrated at
   https://github.com/poncateam/ci-submodule-helper. In this example, Ponca is included as a git submodule, and included
   in the main `CMakeLists.txt` as follow:
   \code
@@ -103,7 +103,7 @@
 
   \subsection getting_started_installation_compilation_instantiate Reducing compile time
 
-  \node This section is not available for MSVC (windows default compiler). If MSVC is detected, the `Instantiate` target will become an empty library hence CMake code remains valid. 
+  \note This section is not available for MSVC (windows default compiler). If MSVC is detected, the `Instantiate` target will become an empty library hence CMake code remains valid.
 
    The (quite heavy) use of templates in some modules may increase compilation times. In order to alleviate the burden, we provide a shared library that pre-instantiate 
    what we believe to be classical usage of the library. This shift most of the compilation burder to the shared library instead of a more frequently compiled code. 
