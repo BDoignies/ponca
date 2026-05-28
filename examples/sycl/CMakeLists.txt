@@ -1,4 +1,4 @@
-project(Ponca_Examples_sycle LANGUAGES CXX)
+project(Ponca_Examples_sycl LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
