@@ -14,7 +14,11 @@
 
 namespace Ponca
 {
-
+    template <class DataPoint, class _NFilter, int Type, typename T>
+    class NoDerivative : public T
+    {
+        PONCA_FITTING_DECLARE_DEFAULT_TYPES
+    };
     /*!
         \brief Base class of any computation unit of a Basket
 

@@ -48,12 +48,14 @@
 
 /// Declare the following defaults types: Base, Scalar, VectorType, NeighborFilter
 #define PONCA_FITTING_DECLARE_DEFAULT_TYPES                                                  \
-protected:                                                                                   \
+public:                                                                                      \
     using Base = T; /*!< \brief Base class of the procedure*/                                \
 public:                                                                                      \
     using Scalar         = typename DataPoint::Scalar;    /*!< \brief Alias to scalar type*/ \
     using VectorType     = typename Base::VectorType;     /*!< \brief Alias to vector type*/ \
-    using NeighborFilter = typename Base::NeighborFilter; /*!< \brief Alias to the filter applied on the neighbors */
+    using NeighborFilter = typename Base::NeighborFilter; /*!< \brief Alias to the filter applied on the neighbors */ \
+    template <typename _P, typename _NF, int _Type, typename _T>                                                      \
+    using DiffExtType = NoDerivative<_P, _NF, _Type,  _T>;
 
 /// Declare the following defaults types: Base, Scalar, VectorType, NeighborFilter
 #define PONCA_FITTING_DECLARE_MATRIX_TYPE \

@@ -95,7 +95,23 @@ namespace Ponca
             using type = Ext<BSKP, BSKNF, Type, BasketType>;
         };
 
-        /*!
+        template<typename T>
+        concept HasBase = requires { typename T::Base; };
+
+        template<int Type, typename BasketExt, typename BasketType, template <class, class, int, typename> class Ext, template<class, class, int, typename> class... Exts>
+        struct BasketAutoDiffAggregateImpl
+        {
+            using type = typename BasketDiffAggregateImpl<Type, BasketType, Ext, Exts...>::type;
+        };
+
+
+        template<int Type, HasBase BasketExt, typename BasketType, template <class, class, int, typename> class Ext, template<class, class, int, typename> class... Exts>
+        struct BasketAutoDiffAggregateImpl<Type, BasketExt, BasketType, Ext, Exts...>
+        {
+            using type = typename BasketAutoDiffAggregateImpl<Type, typename BasketExt::Base, typename BasketExt::template DiffExtType<BSKP, BSKNF, Type, BasketType>, Ext, Exts...>::type;
+        };
+
+                /*!
          * \brief Internal class used to build the BasketDiff structure
          * Uses BasketDiffAggregateImpl to unroll the CRTP variadic list
          *
@@ -107,6 +123,11 @@ namespace Ponca
         struct BasketDiffAggregate : BasketDiffAggregateImpl<Type, BasketType, BasketDiffUnitBase, Exts...>
         {
         };
+
+        template <typename BasketType, int Type, template <class, class, int, typename> class... Exts>
+        struct BasketAutoDiffAggregate : BasketAutoDiffAggregateImpl<Type, BasketType, BasketType, BasketDiffUnitBase, Exts...>
+        { };
+
     } // namespace internal
 #endif
 
@@ -213,13 +234,13 @@ namespace Ponca
               template <class, class, int, typename> class... Exts>
     class BasketDiff
         : public BasketComputeObject<BasketDiff<BasketType, Type, Ext0, Exts...>,
-                                     typename internal::BasketDiffAggregate<BasketType, Type, Ext0, Exts...>::type>
+                                     typename internal::BasketAutoDiffAggregate<BasketType, Type, Ext0, Exts...>::type>
     {
     private:
         using Self = BasketDiff;
 
     public:
-        using Base = typename internal::BasketDiffAggregate<BasketType, Type, Ext0, Exts...>::type;
+        using Base = typename internal::BasketAutoDiffAggregate<BasketType, Type, Ext0, Exts...>::type;
         /// Neighbor Filter
         using NeighborFilter = BSKNF;
         /// Point type used for computation
