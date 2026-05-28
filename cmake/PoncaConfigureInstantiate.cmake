@@ -78,12 +78,6 @@ else()
     endforeach()
 endif()
 
-
-set_target_properties(Instantiate PROPERTIES
-  LINKER_LANGUAGE CXX
-)
-
-
 install(TARGETS Instantiate
     EXPORT InstantiateTargets
     LIBRARY DESTINATION  ${CMAKE_INSTALL_LIBDIR}
