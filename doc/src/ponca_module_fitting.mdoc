@@ -273,27 +273,30 @@ namespace Ponca
   Aggregating small computational objects allows to minimize code duplication, but also to easily combine different techniques.
   For instance, GLSDer can be used independently of the fitting technique, e.g. Ponca::OrientedSphereFit or Ponca::UnorientedSphereFit, as long as the fitted \ref PrimitiveBase "Primitive" is an AlgebraicSphere.
 
-  In order to detect if the computational objects are correctly combined, Ponca provides a compile-time requirement/capability system:
-  each computational objects check if the other classes of the CRTP provides the required computations.
-  For instance, in the GLSParam class, we define the following enum:
-  \snippet{lineno} gls.h Requirements
-  `Base` is a type defined from the CRTP and that represents the inherited classes.
-  If `Base` does not define `PROVIDES_ALGEBRAIC_SPHERE`, this line generates an error when compiling the program.
-  For instance, compiling the type
-  \code
-      typedef Basket<Point, WeightSmoothFunc, GLSParam> FitSmoothOriented;
-  \endcode
-  generates the following error:
-  \code
-  Building CXX object /xxxxx/wrongType.cpp.o
-  In file included from /xxxxx/wrongType.cpp:19:
-  /xxxxx/ponca/Ponca/src/Fitting/gls.h:51:23: error: no member named 'PROVIDES_ALGEBRAIC_SPHERE' in 'Ponca::PrimitiveBase<PointPositionNormal<float, 3>, Ponca::DistWeightFilter<PointPositionNormal<float, 3>, Ponca::SmoothWeightKernel<float> >, void>'
-          Check = Base::PROVIDES_ALGEBRAIC_SPHERE,
-                  ~~~~~~^
-  \endcode
-  The capability `PROVIDES_GLS_PARAMETRIZATION` tells that GLSParam provides the GLS parameterization \cite Mellado:2012:GLS, and other components can access the related information.
-  
-  In order to ease tools combinations, each class declare a set of *required* and *provided* capabilities, which are detailed in the Section \ref concepts_provides.
+  In order to detect if the computational objects are correctly combined, Ponca relies on C++20 concepts. Most concepts provided for Basket extensions and tools can be found within the Fitting/concepts.hpp file. 
+  For instance, the GLSParam class is defined as:
+
+  \snippet gls.h example_requirements_usage
+
+  We encourage macros to express requirements, as they ease definitions. For instance: 
+  \snippet gls.h example_requirements
+
+  This indicates that the class expects another extention to provide an AlgebraicSphere. If not, a compiler error
+  will be emitted. For instance, gcc emits:
+
+  ```sh
+ponca/tests/src/test.cpp:192:9:   required from ‘void callSubTests() [with Scalar = long double; int Dim = 3]’
+ponca/tests/src/test.cpp:252:5:   required from here
+ponca/Ponca/src/Fitting/Basket/basket.h:53:19: error: template constraint failure for ‘template<class DataPoint, class _NFi
+lter, class T>  requires  ProvidesAlgebraicSphere<T> class Ponca::GLSParam’
+   53 |             using type = Ext<P, NF, Aggregate>;
+      |                   ^~~~
+ponca/Ponca/src/Fitting/Basket/basket.h:53:19: note: constraints not satisfied
+  ```
+
+  The whole output can be quite verbose, but is very precise: it tells you exactly what expression of a requirement is invalid and
+  can help you debug the code. 
+  Classes do not describe which concept they satisfies, apart perhaps in their documentation.
 
   \note In its current version, the requirement/capability system offer limited protection over the combination of tools providing the same capabilities.
   Indeed, it is possible to build ill-formed combinations where two computations attempt to save their results at the same place, e.g. when using two fitting technique for the same primitive:
@@ -310,10 +313,13 @@ namespace Ponca
 
   \code
     PONCA_EXPLICIT_CAST_OPERATORS(ClassName, className);
-  \encode
+  \endcode
 
   Where the first parameter is the class name and the second is the name of the cast function which is, most of the time, the same as the 
   class name excpet a first lower case letter. Note that this macro requires the template parameter to be named following ponca conventions. 
+  A class may provide multiple cast operator. 
+
+  In order to respects concepts, a cast operator to a common name is required. This name can be found within the concept declaration (Fitting/concepts.hpp)
 
   \subsubsection fitting_newdiff New primitive differentiation (BasketDiff API)
     

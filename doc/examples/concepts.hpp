@@ -38,16 +38,11 @@ namespace Ponca
 
         //! [ComputationalObjectConcept]
         template <class DataPoint, class _NFilter, typename T = void>
-        class ComputationalObjectConcept
+            requires ProvidesREQUIREMENT_1<T> && ProvidesREQUIREMENT_2<T>
+        ... class ComputationalObjectConcept
         {
             // Defines common types (Base, Scalar, VectorType, NeighborFilter)
             PONCA_FITTING_DECLARE_DEFAULT_TYPES
-        protected:
-            enum
-            {
-                Check = PROVIDES_CAPABILITY_1 && PROVIDES_CAPABILITY_2    //< List of required capabilities
-                                                     PROVIDES_CAPABILITY, //< List of provided capabilities
-            };
 
         public:
             using Scalar         = typename DataPoint::Scalar;     //< Inherited scalar type
@@ -82,17 +77,12 @@ namespace Ponca
 
         //! [ComputationalDerivativesConcept]
         template <class DataPoint, class _NFilter, int Type, typename T>
+            requires ProvidesREQUIREMENT_1<T> && ProvidesREQUIREMENT_2<T>
         class ComputationalDerivativesConcept
         {
             // Defines common types (Base, Scalar, VectorType, NeighborFilter)
             PONCA_FITTING_DECLARE_DEFAULT_TYPES
             PONCA_FITTING_DECLARE_DEFAULT_DER_TYPES
-        protected:
-            enum
-            {
-                Check = PROVIDES_CAPABILITY_1 && PROVIDES_CAPABILITY_2    //< List of required capabilities
-                                                     PROVIDES_CAPABILITY, //< List of provided capabilities
-            };
 
         public:
             using Scalar         = typename DataPoint::Scalar;     //< Inherited scalar type
@@ -199,7 +189,9 @@ namespace Ponca
             */
             PONCA_MULTIARCH inline VectorType scaleSpaced2w(const VectorType& _q, const DataPoint& _attributes) const;
         };
+        //! [FilterConcept]
 
+        //! [WeightKernelConcept]
         // \brief Concept of a 1D weighting function and its derivatives.
         template <typename _Scalar>
         class WeightKernelConcept
