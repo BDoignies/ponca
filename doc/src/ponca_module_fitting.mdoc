@@ -276,12 +276,10 @@ namespace Ponca
   In order to detect if the computational objects are correctly combined, Ponca relies on C++20 concepts. Most concepts provided for Basket extensions and tools can be found within the Fitting/concepts.hpp file. 
   For instance, the GLSParam class is defined as:
 
- ```cpp
-#define GLS_PARAM_REQUIREMENTS ProvidesAlgebraicSphere<T>
-template <class DataPoint, class _NFilter, typename T>
-    requires GLS_PARAM_REQUIREMENTS
-class GLSParam : public T;
- ```
+  \snippet gls.h example_requirements_usage
+
+  We encourage macros to express requirements, as they ease definitions. For instance: 
+  \snippet gls.h example_requirements
 
   This indicates that the class expects another extention to provide an AlgebraicSphere. If not, a compiler error
   will be emitted. For instance, gcc emits:

@@ -9,7 +9,10 @@
 #include "../../defines.h"
 #include "../concepts.h"
 
+//! [example_requirements]
 #define GLS_PARAM_REQUIREMENTS ProvidesAlgebraicSphere<T>
+//! [example_requirements]
+
 #define GLS_DER_REQUIREMENTS ProvidesAlgebraicSphere<T>&& ProvidesImplicitPrimitiveDerivative<T>&& ProvidesGLSParam<T>
 
 namespace Ponca
@@ -40,9 +43,11 @@ namespace Ponca
         Respects:
         \verbatim ProvidesGLSParam \endverbatim
     */
+    //! [example_requirements_usage]
     template <class DataPoint, class _NFilter, typename T>
         requires GLS_PARAM_REQUIREMENTS
     class GLSParam : public T
+    //! [example_requirements_usage]
     {
         PONCA_FITTING_DECLARE_DEFAULT_TYPES
     protected:
