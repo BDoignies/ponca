@@ -6,6 +6,19 @@
 
 #pragma once
 
+/**
+ * At the time of writting this, no problem was detected in using 
+ * Ponca/Instantiate in any case. 
+ * 
+ * However, it is suspected that it might cause issues with the 
+ * extern keyword.
+ * 
+ * We protect against this for safety. 
+ */
+#ifdef _PONCA_INSTANTIATE_LIBRARY
+#   include <Ponca/Instantiate>
+#endif
+
 #include <Ponca/Common>
 #include <Ponca/Fitting>
 #include <Ponca/SpatialPartitioning>

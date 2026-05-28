@@ -17,7 +17,7 @@
 
 #include <vector>
 
-#include <Ponca/Instantiate>
+#include <Ponca/Ponca>
 #include <Ponca/Ponca>
 #include <Ponca/SpatialPartitioning>
 #include <vector>

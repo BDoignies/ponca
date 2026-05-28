@@ -11,7 +11,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iostream>
 #include <random>
-#include <Ponca/Instantiate>
+#include <Ponca/Ponca>
 #include <Ponca/Ponca>
 
 using DataPoint = Ponca::PointPosition<float, 3>;

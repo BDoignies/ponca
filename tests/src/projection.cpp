@@ -14,7 +14,7 @@
 
 #include "../common/testing.h"
 
-#include <Ponca/Instantiate>
+#include <Ponca/Ponca>
 #include <Ponca/Ponca>
 
 #include <chrono>

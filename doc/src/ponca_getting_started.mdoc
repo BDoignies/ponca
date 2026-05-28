@@ -28,11 +28,7 @@
   \code
   #include <Ponca/Ponca>
   \endcode
-  To speed-up compilation, you may only use the header corresponding to the module you are interested in. For example:
-  \code
-  #include <Ponca/Fitting>
-  \endcode
-
+  
   \subsection getting_started_installation_cmakesubdirectory_subsec Use as cmake subdirectory
 
   Since version 0.2, Ponca can be included in existing cmake projects using `add_subdirectory`, as demonstrated at
@@ -112,11 +108,11 @@
    The (quite heavy) use of templates in some modules may increase compilation times. In order to alleviate the burden, we provide a shared library that pre-instantiate 
    what we believe to be classical usage of the library. This shift most of the compilation burder to the shared library instead of a more frequently compiled code. 
 
-   In order to benefit from using the library: 
-   - Link your project with the Instantiate target: `target_link_libraries(your_target PUBLIC Ponca::Instantiate)`
-   - Include the correct header: `#include <Ponca/Instantiate>`. This header already includes the whole library. In order to work, it must be the first ponca include for the translation unit. 
-  
-   CMake will automaitcally build the `Instantiate` library the first time required. Depending on the option, this can be quite long.
+   In order to benefit from using the library the only step necessary is to link with `Ponca::Instantiate`   
+   
+   `target_link_libraries(your_target PUBLIC Ponca::Instantiate)`
+   
+   CMake will automatically build the `Instantiate` library the first time required. Depending on the option, this can be quite long.
 
    \subsubsection getting_started_installation_compilation_instantiate_params Instantiation parameters
 

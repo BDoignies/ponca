@@ -48,6 +48,7 @@ else()
         )
 
     target_link_libraries(Instantiate PUBLIC Eigen3::Eigen)
+    target_compile_definitions(Instantiate PUBLIC _PONCA_INSTANTIATE_LIBRARY)
     target_compile_definitions(Instantiate PRIVATE _PONCA_SHARED_LIBRARY)
 
 

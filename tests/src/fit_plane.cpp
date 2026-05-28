@@ -16,7 +16,7 @@
 #include "../common/testing.h"
 #include "../common/testUtils.h"
 
-#include <Ponca/Instantiate>
+#include <Ponca/Ponca>
 #include <Ponca/Ponca>
 
 #include <vector>

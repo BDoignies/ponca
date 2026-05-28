@@ -13,7 +13,6 @@
 #if defined(_PONCA_INSTANTIATE_CONSTANTWEIGHT) || defined(_PONCA_INSTANTIATE_ALL)
 #    define _NF DistWeightFilter<_P, ConstantWeightKernel<_S>>
 #    include "baskets.h"
-_PONCA_INSTANTIATE(_NF);
 #    undef _NF
 #endif
 

@@ -11,7 +11,8 @@
 #    define _INSTANTIATE_PONCA_EXTERN extern
 #endif
 
-#include "../../../Ponca"
+#include "../../../Common"
+#include "../../../Fitting"
 
 namespace Ponca
 {

@@ -14,7 +14,7 @@
 #include <iostream>
 #include <vector>
 
-#include <Ponca/Instantiate>
+#include <Ponca/Ponca>
 #include <Ponca/Ponca>
 
 using namespace Eigen;
