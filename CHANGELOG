@@ -47,6 +47,7 @@ This release will introduce a refactoring of the requirement library using cpp20
 - Docs
     - [doc] Add documentation about CPM installation for ponca (#302)
     - [doc] Update contributors (#326)
+    - [doc] Minor updates on the Concepts description and curvature estimators (#331)
 
 --------------------------------------------------------------------------------
 v.2.0.alpha2
