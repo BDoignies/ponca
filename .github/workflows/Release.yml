@@ -1,0 +1,76 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: Create Release
+
+jobs:
+  build:
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: on
+      matrix:
+        config:
+          - { name: "Windows", os: windows-latest, icon: "Windows"}
+          - { name: "Ubuntu",  os: ubuntu-latest, icon: "Linux" }
+          - { name: "MacOS",   os: macos-latest, icon: "Apple" }
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          path: src
+      
+      - name: CMake
+        run: |
+          mkdir ../install-${{ matrix.config.name }}
+          cmake ../src -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install-${{ matrix.config.name }} -DPONCA_CONFIGURE_EXAMPLES=OFF -DPONCA_CONFIGURE_DOC=OFF -DPONCA_CONFIFURE_TESTS=OFF -DPONCA_INSTANTIATE_ALL=OFF
+
+      - name: Build
+        run: |
+          cmake --build .
+
+      - name: Making relocatble CMake Install
+        run: |
+          cmake --install .
+
+      - name: Saving folders
+        uses: actions/upload-artifact@v7
+        with:
+          name: install
+          path: ../install-${{ matrix.config.name }}
+
+
+  release:
+    runs-on: "ubuntu-latest"
+    needs: build
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Extract CHANGELOG info
+        id: changelog
+        shell: bash
+        run: |
+          CONTENT=$(awk '/^-+$/{count++; if(count==2) exit} count==1{lines++; if(lines>2) print}' CHANGELOG)
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Getting install folders
+        uses: actions/download-artifact@v7
+        with: 
+          path: install
+
+      - name: Create Release
+        uses: ncipollo/create-release@v1
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: Release ${{ github.ref }}
+          body: ${{ steps.changelog.outputs.content }}
+          draft: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'RC') }}
+          artifacts: "install/**"
+          allowUpdate: true # In case something went wrong :) 
+
