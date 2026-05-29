@@ -61,7 +61,9 @@ jobs:
         id: changelog
         shell: bash
         run: |
-          CONTENT=$(awk '/^-+$/{count++; if(count==2) exit} count==1{lines++; if(lines>2) print}' CHANGELOG)
+          # Looks for the block that contains the refname (without the v if it exists)
+          # If the version is not found, we redirect the user to the CHANGELOG file
+          CONTENT=$(awk -v version='${{ github.ref_name }}' 'BEGIN { sub(/^v/, "", version); version = tolower(version) } /^---/ { if (found) { exit } } found  { print } tolower($0) ~ tolower(version) { found = 1 } END { if (!found) print "For information about changes, see CHANGELOG file." }' CHANGELOG)
           echo "content<<EOF" >> $GITHUB_OUTPUT
           echo "$CONTENT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
