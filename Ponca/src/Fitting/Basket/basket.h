@@ -197,6 +197,17 @@ namespace Ponca
 
             return res;
         }
+
+        // WARNING: Do not store anything in this class unless you know what you are doing.
+        // Currently, each BasketDiff inherits "twice" from BasketComputeObject:
+        //  - Through BasketComputeObject<Basket>
+        //  - Through BasketComputeObject<BasketDiff>
+        // According to the rules of C++, these classes have nothing in common and are as
+        // different as an int and a std::vector. There is a high chance that the
+        // BasketComputeObject<Basket> and BasketComputeObject<BasketDiff> subobjects
+        // will become out of sync. In particular, you need to manually handle value
+        // propagation between them to ensure that both instances see the same values when
+        // needed.
     };
 
 #define WRITE_COMPUTE_FUNCTIONS                     \
