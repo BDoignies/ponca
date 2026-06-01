@@ -55,6 +55,16 @@ public:                                                                         
     using VectorType     = typename Base::VectorType;     /*!< \brief Alias to vector type*/ \
     using NeighborFilter = typename Base::NeighborFilter; /*!< \brief Alias to the filter applied on the neighbors */
 
+/// Declare the following defaults types: Base, Status, Scalar, VectorType, NeighborFilter
+#define PONCA_FITTING_DECLARE_MULTIPASS_TYPES                                                         \
+protected:                                                                                            \
+    using Base   = MultipassStatus<DataPoint, _NFilter, T>; /*!< \brief Base class of the procedure*/ \
+    using Status = Base;                                    /*!< \brief Status class for multipass */ \
+public:                                                                                               \
+    using Scalar         = typename DataPoint::Scalar;    /*!< \brief Alias to scalar type*/          \
+    using VectorType     = typename Base::VectorType;     /*!< \brief Alias to vector type*/          \
+    using NeighborFilter = typename Base::NeighborFilter; /*!< \brief Alias to the filter applied on the neighbors */
+
 /// Declare the following defaults types: Base, Scalar, VectorType, NeighborFilter
 #define PONCA_FITTING_DECLARE_MATRIX_TYPE \
 public:                                   \

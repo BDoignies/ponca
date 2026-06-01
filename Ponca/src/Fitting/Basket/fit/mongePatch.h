@@ -10,6 +10,7 @@
 
 #include "../extensions/heightField.h"
 #include "../extensions/weingarten.h"
+#include "../utils.h"
 
 #include PONCA_MULTIARCH_INCLUDE_STD(cmath)
 
@@ -41,7 +42,6 @@ namespace Ponca
     class MongePatch : public T
     {
         PONCA_FITTING_DECLARE_DEFAULT_TYPES
-
         /*! \brief Default constructor */
         PONCA_MULTIARCH inline MongePatch() : Base() { Base::init(); }
 
@@ -133,9 +133,10 @@ namespace Ponca
      */
     template <class DataPoint, class _NFilter, typename T>
         requires MONGE_PATCH_FIT_REQUIREMENTS
-    class MongePatchQuadraticFitImpl : public T
+    class MongePatchQuadraticFitImpl : public MultipassStatus<DataPoint, _NFilter, T>
     {
-        PONCA_FITTING_DECLARE_DEFAULT_TYPES
+        PONCA_FITTING_DECLARE_MULTIPASS_TYPES
+    private:
         // we need to use dynamic matric to use ThinU, ThinV for solving
         using SampleMatrix                     = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
         using QuadraticHeightFieldCoefficients = typename Base::HeightFieldCoefficients;
@@ -144,9 +145,6 @@ namespace Ponca
     public:               // temporary DO NOT MERGE THIS
         SampleMatrix m_A; /*!< \brief Quadric input samples */
         QuadraticHeightFieldCoefficients m_b{QuadraticHeightFieldCoefficients::Zero()}; /*!< \brief Observations */
-
-        bool m_planeIsReady{false};
-
     public:
         PONCA_EXPLICIT_CAST_OPERATORS(MongePatchQuadraticFitImpl, mongePatchQuadraticFit)
         PONCA_FITTING_DECLARE_INIT_ADD_FINALIZE
@@ -161,10 +159,10 @@ namespace Ponca
      */
     template <class DataPoint, class _NFilter, typename T>
         requires MONGE_PATCH_FIT_REQUIREMENTS
-    class MongePatchRestrictedQuadraticFitImpl : public T
+    class MongePatchRestrictedQuadraticFitImpl : public MultipassStatus<DataPoint, _NFilter, T>
     {
-        PONCA_FITTING_DECLARE_DEFAULT_TYPES
-
+        PONCA_FITTING_DECLARE_MULTIPASS_TYPES
+    private:
         // we need to use dynamic matric to use ThinU, ThinV for solving
         using SampleMatrix                     = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
         using QuadraticHeightFieldCoefficients = typename Base::HeightFieldCoefficients;
@@ -172,9 +170,6 @@ namespace Ponca
     protected:
         SampleMatrix m_A; /*!< \brief Quadric input samples */
         QuadraticHeightFieldCoefficients m_b{QuadraticHeightFieldCoefficients::Zero()}; /*!< \brief Observations */
-
-        bool m_planeIsReady{false};
-
     public:
         PONCA_EXPLICIT_CAST_OPERATORS(MongePatchRestrictedQuadraticFitImpl, mongePatchQuadraticFit)
         PONCA_FITTING_DECLARE_INIT_ADD_FINALIZE
