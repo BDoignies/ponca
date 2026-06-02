@@ -14,6 +14,7 @@ This release will introduce a refactoring of the requirement library using cpp20
     - [fitting] Add MultipassStatus class to ease check status of required extensions (#339)
     - [spatialPartitioning] Rework KnnGraph API for compilation and query on the GPU (#301,#325)
     - [spatialPartitioning] Replace KnnGraph query containers with custom Stack and HashSet structure (#301,#325)
+    - [spatialPartitioning] Introduce NeighborGraphs as a generalization of the KnnGraphs (#327,#341)
     - [spatialPartitioning] Fix a bug when re-building an existing KdTree (#320)
     - [common] Rename LimitedPriorityQueue, and update to work in CUDA (#301)
     - [common] Added Bitset and Hashset data-structures (also CUDA-compatible) (#301,#325)
