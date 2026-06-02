@@ -11,6 +11,7 @@ This release will introduce a refactoring of the requirement library using cpp20
     - [fitting] MLS is now a separate class from Basket (#298)
     - [fitting] projectDescent is now a separate class from Basket (#298)
     - [fitting] Add prattNorm derivatives in UnorientedSphereFit (#304)
+    - [fitting] Add MultipassStatus class to ease check status of required extensions (#339)
     - [spatialPartitioning] Rework KnnGraph API for compilation and query on the GPU (#301,#325)
     - [spatialPartitioning] Replace KnnGraph query containers with custom Stack and HashSet structure (#301,#325)
     - [spatialPartitioning] Fix a bug when re-building an existing KdTree (#320)
