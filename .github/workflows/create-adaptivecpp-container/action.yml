@@ -26,7 +26,7 @@ runs:
       with:
         file: .github/workflows/create-adaptivecpp-container/Adaptivecpp.dockerfile
         platforms: linux/amd64
-        push: true
+        push: ${{ github.event_name != 'pull_request' }}
         tags: ghcr.io/poncateam/ponca/adaptivecpp:latest
         cache-from: type=registry,ref=ghcr.io/poncateam/ponca/adaptivecpp:latest
         cache-to: type=inline

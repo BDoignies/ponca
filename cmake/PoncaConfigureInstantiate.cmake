@@ -42,7 +42,7 @@ else()
         "$<INSTALL_INTERFACE:include/>"
         )
 
-    target_sources(Instantiate PUBLIC
+    target_sources(Instantiate PRIVATE
         "$<BUILD_INTERFACE:${ponca_Precompiled_SRC}>"
         "$<INSTALL_INTERFACE:>"
         )
