@@ -37,7 +37,7 @@ jobs:
         working-directory: build/install
         run: zip -r ../../ponca-${{ matrix.config.name }}.zip .
 
-      - name: Zipping install directory (Linux/Mac)
+      - name: Zipping install directory (MSVC)
         if: runner.os == 'Windows'
         working-directory: build/install
         run: Compress-Archive -Path * -DestinationPath ../../ponca-${{ matrix.config.name }}.zip
