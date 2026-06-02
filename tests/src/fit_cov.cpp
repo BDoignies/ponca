@@ -23,9 +23,9 @@ using namespace Ponca;
 /// Class that perform the covariance fit using standard two-passes procedure
 template <class DataPoint, class _NFilter, typename T>
     requires ProvidesMeanPosition<T>
-class CovarianceFitTwoPassesBase : public T
+class CovarianceFitTwoPassesBase : public MultipassStatus<DataPoint, _NFilter, T>
 {
-    PONCA_FITTING_DECLARE_DEFAULT_TYPES
+    PONCA_FITTING_DECLARE_MULTIPASS_TYPES
 public:
     using MatrixType = typename DataPoint::MatrixType; /*!< \brief Alias to matrix type*/
     /*! \brief Solver used to analyse the covariance matrix*/
@@ -63,7 +63,7 @@ template <class DataPoint, class _NFilter, typename T>
 void CovarianceFitTwoPassesBase<DataPoint, _NFilter, T>::addLocalNeighbor(Scalar w, const VectorType& localQ,
                                                                           const DataPoint& attributes)
 {
-    if (!m_barycenterReady) /// first pass
+    if (!Status::ready()) /// first pass
     {
         Base::addLocalNeighbor(w, localQ, attributes);
     }
@@ -79,18 +79,12 @@ template <class DataPoint, class _NFilter, typename T>
     requires ProvidesMeanPosition<T>
 FIT_RESULT CovarianceFitTwoPassesBase<DataPoint, _NFilter, T>::finalize()
 {
-    if (!m_barycenterReady)
-    { /// end of the first pass
-        auto ret = Base::finalize();
-        if (ret == STABLE)
-        {
-            m_barycenterReady = true;
-            m_barycenter      = Base::barycenterLocal();
-            return NEED_OTHER_PASS;
-        }
-        // handle specific configurations
-        if (ret != STABLE)
-            return Base::m_eCurrentState;
+    if (!Status::ready())
+    {
+        FIT_RESULT ret = Base::finalize();
+        if (Status::ready())
+            m_barycenter = Base::barycenterLocal();
+        return ret;
     }
     else
     { /// end of the second pass
