@@ -29,7 +29,7 @@ namespace Ponca
     {
         PONCA_FITTING_DECLARE_DEFAULT_TYPES
     public:
-        MultipassStatus() : m_ready(false) { }
+        MultipassStatus() : m_ready(false) {}
 
         PONCA_MULTIARCH inline void init()
         {
