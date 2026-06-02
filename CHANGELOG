@@ -44,6 +44,7 @@ This release will introduce a refactoring of the requirement library using cpp20
     - [ci] Formatter now checks for cuda files (#332, #315)
     - [ci] Speed-up coverage compilation by switching to release mode (#337)
     - [sycl] add AdaptiveCPP in CI to compile examples (#312)
+    - [ci] New action that automatically create releases (#333)
 
 - Examples
     - [spatialPartitioning] Add a cuda example with the KnnGraph (#301, #323)

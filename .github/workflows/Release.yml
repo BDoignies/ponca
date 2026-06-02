@@ -1,0 +1,87 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: Create Release
+
+jobs:
+  build:
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      matrix:
+        config:
+          - { name: "Ubuntu",  os: ubuntu-latest, icon: "Linux" }
+          - { name: "MacOS",   os: macos-latest, icon: "Apple" }
+          - { name: "Windows", os: windows-latest, icon: "Windows"}
+    steps:
+      - uses: actions/checkout@master
+        with:
+          path: src
+      
+      - name: CMake
+        run: |
+          mkdir build && cd build
+          cmake ../src -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_Fortran_COMPILER="" -DPONCA_CONFIGURE_EXAMPLES=OFF -DPONCA_CONFIGURE_DOC=OFF -DPONCA_CONFIFURE_TESTS=OFF
+
+      - name: Build
+        run: |
+          cmake --build build/
+
+      - name: Making relocatble CMake Install
+        run: |
+          cmake --install build/
+
+      - name: Zipping install directory (Linux/Mac)
+        if: runner.os != 'Windows'
+        working-directory: build/install
+        run: zip -r ../../ponca-${{ matrix.config.name }}.zip .
+
+      - name: Zipping install directory (MSVC)
+        if: runner.os == 'Windows'
+        working-directory: build/install
+        run: Compress-Archive -Path * -DestinationPath ../../ponca-${{ matrix.config.name }}.zip
+
+
+      - name: Saving folders
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.config.name }}
+          path: ponca-${{ matrix.config.name }}.zip
+
+
+  release:
+    runs-on: "ubuntu-latest"
+    needs: build
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Extract CHANGELOG info
+        id: changelog
+        shell: bash
+        run: |
+          # Looks for the block that contains the refname (without the v if it exists)
+          # If the version is not found, we redirect the user to the CHANGELOG file
+          CONTENT=$(awk -v version='${{ github.ref_name }}' 'BEGIN { sub(/^v/, "", version); version = tolower(version) } /^---/ { if (found) { exit } } found  { print } tolower($0) ~ tolower(version) { found = 1 } END { if (!found) print "For information about changes, see CHANGELOG file." }' CHANGELOG)
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Getting install folders
+        uses: actions/download-artifact@v7
+        with: 
+          path: all
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: Release ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.content }}
+          draft: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'RC') }}
+          artifacts: "all/MacOS/ponca-MacOS.zip,all/Ubuntu/ponca-Ubuntu.zip,all/Windows/ponca-Windows.zip"
+          allowUpdates: true # In case something went wrong :) 
+
