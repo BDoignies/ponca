@@ -137,7 +137,7 @@ namespace Ponca
                 {
                     Base::m_bufs.indices.push_back(n);
                 }
-                Base::m_bufs.ranges[i + 1] = Base::m_bufs.indices.size();
+                Base::m_bufs.ranges[i + 1] = IndexType(Base::m_bufs.indices.size());
             }
             Base::m_bufs.indices_size = Base::m_bufs.indices.size();
         }
