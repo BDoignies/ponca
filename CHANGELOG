@@ -35,7 +35,7 @@ This release will introduce a refactoring of the requirement library using cpp20
 - Cmake
     - [all] Eigen is now always for transitive linking (#302)
     - [all] Update cmake_minimum_requirement to 3.12 for project (#328)
-    - [all] Add new Ponca::Instantiate target (#304)
+    - [all] Add new Ponca::Instantiate target (#304, #337)
 
 - CI/Actions
     - [ci] Fix Issue with Eigen build in buildAsSubmodule (#299)
