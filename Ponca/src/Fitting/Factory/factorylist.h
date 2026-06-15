@@ -5,7 +5,10 @@
 */
 #pragma once
 
+<<<<<<< HEAD
 #include "../../../Fitting"
+=======
+>>>>>>> e4be727c3 ([fitting] First working factory (+test))
 #include "typelist.h"
 
 namespace Ponca
