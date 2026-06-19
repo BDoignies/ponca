@@ -2,6 +2,8 @@
 
 #include "../concepts.h"
 
+#include <type_traits>
+
 namespace Ponca
 {
     /// \brief This concept if currently only used a base concept for ProvidesBasketUnitBase
@@ -43,4 +45,10 @@ namespace Ponca
         { ct.derDimension() } -> std::integral;
     };
 
+
+    template <typename T>
+    concept ProvidesSpaceDerivatives = ProvidesCommonTypes<T> && requires(const T ct)
+    {
+        { ct.isSpaceDer() } -> std::integral_constant<bool, true>;
+    };
 } // namespace Ponca
