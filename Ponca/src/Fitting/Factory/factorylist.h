@@ -5,10 +5,7 @@
 */
 #pragma once
 
-<<<<<<< HEAD
 #include "../../../Fitting"
-=======
->>>>>>> e4be727c3 ([fitting] First working factory (+test))
 #include "typelist.h"
 
 namespace Ponca
@@ -91,7 +88,7 @@ namespace Ponca
     using FactoryGenericList = std::tuple<
         FactoryEntry<"DryFit"            , Basket<P, NF, DryFit>>,
         FactoryEntry<"MeanPosition"      , Basket<P, NF, MeanPosition>>,
-        FactoryEntry<"MeanNormal"        , Basket<P, NF, MeanPosition>>,
+        FactoryEntry<"MeanNormal"        , Basket<P, NF, MeanNormal>>,
         FactoryEntry<"CovarianceLineFit" , Basket<P, NF, CovarianceLineFit>>,
         FactoryEntry<"CovariancePlaneFit", Basket<P, NF, CovariancePlaneFit>>,
         FactoryEntry<"SphereFit"         , Basket<P, NF, SphereFit>>, 
