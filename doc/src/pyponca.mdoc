@@ -1,0 +1,49 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+namespace Ponca
+{
+  /*!
+    \page pyponca %Unsing Ponca in python
+
+    Since 2.0, Ponca has an official python binding that supports most fonctionnalities the library has to offer. 
+
+
+    \section pyponca Building the python extension
+
+    For now, there is no official pypi repository. Ponca extension must be built manually. It is recommended to create
+    a dedicated environement (see [venv](https://docs.python.org/3/library/venv.html) or [conda](https://anaconda.org/anaconda/conda)). 
+    In order to build the extension, go to the PyPonca directory, and run the command `pip install .`. The building is quite long, have 
+    some patience.
+
+    \section pyponca_usage PyPonca usage
+
+    \subsection pyponca_basics Basic usage
+
+    % TODO : How do we list the methods ? 
+    % Documentations ? 
+
+    \subsection pyponca_arrays Array protocol
+
+    PyPonca uses the [dlpack](https://dmlc.github.io/dlpack/latest/) array protocol for exchanging array data such as points and arrays. 
+    This protocol is supported by most numeric libraries such as numpy, jax, pytorch, tensorflow and much more. Any function requiring data 
+    can therefore work with arrays of the beformentionned libraries. 
+    
+    However, returned array are raw dlpack object that might need to be converted by the desired API. For instance, to obtain a numpy array 
+    returned by `pyponca`, the returned object should be wrapped by `np.from_dlpack` call. In most cases this does not perform copy (unless 
+    explicitely specified) and allow to maintain copyless compatibility with almost all libraries. 
+
+    \section pyponca_cpp What differs from the C++ library
+
+    Ponca heavily rely on template, which is incompatible with interpreted languages by essence. In order to ease the use of the library, 
+    we provide some dispatch types that are under common names. The required information are infered through arguments provided and only
+    when needed is the final type selected. 
+
+    In the C++ version, the heavy computation happens when calling the `compute` method. In the python version computation happens when the 
+    results are queried (for instance when calling the `potential` method). This is a consequence of the poor performance of iterating in 
+    the python side and the dispatching described above. For this reason, the base point cloud for computation is provided through the 
+    `attach` method, which only store a reference pointing to the data. 
+   */
+}

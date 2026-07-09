@@ -191,7 +191,7 @@ void RegisterComputeObjects(nb::module_& m, ComputeObjectRegistry& registry)
         const std::string name = x.name + mangledName;
         
         auto pyco = nb::cast<nb::class_<PyCo>>(registry.entries[name].object);
-        BindFunctions<true , 1, PyCo>("project", pyco, [](T& object, auto p) { return object.project(p); });
+        BindFunctions<true , 3, PyCo>("project", pyco, [](T& object, auto p) { return object.project(p); });
     });
 
     Factory::template Filter<Ponca::ImplicitPrimitiveProvider>().foreach([&](auto& x) {
@@ -209,7 +209,7 @@ void RegisterComputeObjects(nb::module_& m, ComputeObjectRegistry& registry)
 }
 
 template<typename Scalar, unsigned int Dim, template <class> class NF>
-void RegisterComputeObjects(ComputeObjectRegistry registry, nb::module_& m)
+void RegisterComputeObjects(ComputeObjectRegistry& registry, nb::module_& m)
 {
     using namespace Ponca;
     using PointCloud = PyPointCloud<Scalar, Dim>;
@@ -219,7 +219,7 @@ void RegisterComputeObjects(ComputeObjectRegistry registry, nb::module_& m)
 }
 
 template<typename Scalar, unsigned int Dim>
-void RegisterComputeObjects(ComputeObjectRegistry registry, nb::module_& m)
+void RegisterComputeObjects(ComputeObjectRegistry& registry, nb::module_& m)
 {
     RegisterComputeObjects<Scalar, Dim, SWFilter>(registry, m);
     RegisterComputeObjects<Scalar, Dim, CWFilter>(registry, m);

@@ -280,7 +280,7 @@ private:
     bool m_hasCompute;
 
     // Input provided by the user
-    PointCLoud m_pointcloud;
+    PointCloud m_pointcloud;
     const PyKDTree<PointCloud>* m_kdtree;
 
     PyVectorArray<Point> m_pos;

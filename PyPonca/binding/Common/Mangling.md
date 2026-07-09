@@ -29,8 +29,13 @@ The array's scalar type is encoded according to the following mapping (using the
 
 The shape and type encodings are then concatenated directly. For example, a `float` point cloud of shape `(N, 3)` has the mangled name `"3f"`.
 
+#### Filter mangling
+
+Filter mangling is specified manually within Fitting/Filters.h. It commonly uses a shorthand in order for names to remain short. 
+
 #### Compute Object Mangling
 
-Compute object names are constructed by concatenating the method name, the array mangling, and the point type mangling.
+Compute object names are constructed by concatenating the method name, the array mangling, the point type mangling then the filter one. For instance:
 
-At the moment, users cannot select the `Filter` or `Diff` types, so these are not included in the mangled name. The method name and point type mangling are fixed strings defined in the factory and the C++ binding code, respectively.
+* "MongePatchRestrictedQuadratic3fPNCW" is built by the concatenation of "MongePatchRestrictedQuadratic" + "3f" + "PN" + "CW", hence is the specialization 
+of MongePatchRestrictedQuadratic method for 3d float point cloud with normals and the constant weight filter. 

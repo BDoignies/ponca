@@ -93,7 +93,10 @@ struct PyPointCloud
      */
     PyPointCloud(const PyVectorArray<Point>& _pos, const PyVectorArray<Point>& _normals) :
         m_pos(_pos), m_normals(_normals)
-    { }
+    { 
+        if (_pos.dtype() != _normals.dtype())
+            throw std::runtime_error("Type mismatch between position and normals.");
+    }
 
     auto device_type() const 
     {
@@ -196,7 +199,7 @@ struct PyPointCloud
     /**
      * \brief Begining iterator
      */
-    iterator cend() const { return iterator{this, 0}; }
+    iterator cend() const { return iterator{this, m_pos.shape(0)}; }
 private:
     PyVectorArray<Point> m_pos;
     PyVectorArray<Point> m_normals;

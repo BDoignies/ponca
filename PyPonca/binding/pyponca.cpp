@@ -23,6 +23,6 @@ NB_MODULE(_pyponca, m)
     
     RegisterPointClouds(m);
     RegisterManglingUtils(internal);
-    RegisterComputeObjects(m);
     RegisterKDTree(m);
+    RegisterComputeObjects(m);
 }

@@ -137,7 +137,7 @@ inline nb::capsule PyArrayDeleter(T* p)
 template <typename T, size_t N, typename Array>
 auto broadcastArrayTo(const Array& array, const std::array<size_t, N>& targetShape)
 {
-    const size_t ndim = a.ndim();
+    const size_t ndim = array.ndim();
 
     if (ndim > N)
         throw std::runtime_error("Cannot broadcast to fewer dimensions");
