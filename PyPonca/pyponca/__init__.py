@@ -6,8 +6,15 @@
 from . import _pyponca
 from enum import StrEnum
 
+
+__PointName = "PN"
 # Dispatcher for point cloud
 class PointCloud:
+    """
+        Main ponintcloud object that serves as a dispatch
+        class magnles the array and retrieve the corresponding
+        Ponca point cloud structure
+    """
     def __init__(self, *args):
         self.N = 0
         self.dim = 0
@@ -20,7 +27,7 @@ class PointCloud:
             
             if len(args) == 2:
                 if args[0].shape != args[1].shape:
-                    raise RuntimeError("Position and normal must have the same dimension !")
+                    raise RuntimeError("Position and normal must have the same shape !")
             
             self.object = self._pyponcapointcloud(*args)
         else:
@@ -29,15 +36,21 @@ class PointCloud:
     def _pyponcapointcloud(self, *args):
         mangledArray = _pyponca.internal._mangleArray(args[0])
 
-        clsname = "PointCloud" + mangledArray + "PN"
+        clsname = "PointCloud" + mangledArray + __PointName
         if clsname not in _pyponca.__dict__:
             raise NotImplementedError(f"PointCloud does not have specialization for {args[0].dtype} arrays")
 
         self._cls  = _pyponca.__dict__[clsname]
-        self._mangledName = mangledArray + "PN"
+        self._mangledName = mangledArray + __PointName
         return self._cls(*args)
     
 class KDTree:
+    """
+        Main kdtree object that serves as a dispatch
+        class magnles the array and retrieve the corresponding
+        Ponca kdtree structure
+    """
+
     def __init__(self, pc, isSparse = True):
         self.N = 0
         self.dim = 0
@@ -45,12 +58,12 @@ class KDTree:
         self._cls = object
 
         mangledArray = _pyponca.internal._mangleArray(pc)
-        clsname = "KdTree" + mangledArray + "PN"
+        clsname = "KdTree" + mangledArray + __PointName
         if clsname not in _pyponca.__dict__:
             raise NotImplementedError(f"PointCloud does not have specialization for {pc[0].dtype} arrays")
         
         self._cls = _pyponca.__dict__[clsname]
-        self._mangledName = mangledArray + "PN"
+        self._mangledName = mangledArray + __PointName
         self.object = self._cls(pc, isSparse)
 
     def __getattr__(self, name):
@@ -58,32 +71,39 @@ class KDTree:
         
 class Filters(StrEnum):
     """
-        Filter mangling
+        Filter mangling mapping
     """
     SMOOTH_WEIGHT = "SW"
     CONSTANT_WEIGHT = "CW"
     NO_WEIGHT = "NW"
 
-# Method used by the dispatcher 
-# Ctor: stores base name
+# Following methods are dispatch functions
+
 def __initComputeObject(self, name: str):
+    """
+        Ctor of to-be-dispatch compute object
+    """
     self.name = name
     self.nf = Filters.SMOOTH_WEIGHT
 
 # Creates the object
-def __createComputeObject(self, data: PointCloud):
+def __createComputeObject(self, data):
+    """
+        Helper function to dispatch to the correct underlying class
+    """
     clsname = self.name + data._mangledName + str(self.nf)
     if clsname not in _pyponca.__dict__:
         raise NotImplementedError(f"Compute object {self.name} do not have a specialization for {data._mangledName + str(self.nf)} point clouds")
     return _pyponca.__dict__[clsname]()
     
-# Dispatch computation 
 def __dispatchAttach(self, data):
-    # We accepts both dlpacks arrays and PointCloud but the underlying 
-    # object shall only work with PointCloud
+    """
+        Dispatch the attach function to the correct class
+    """
     if isinstance(data, KDTree):
         pass
     elif not isinstance(data, PointCloud):
+        # Convert array to pointcloud !
         data = PointCloud(data)
 
     self.object = __createComputeObject(self, data)
@@ -93,8 +113,11 @@ def __dispatchAttach(self, data):
     self.object.setNeighborFilter(self._pos, self._radius)
     self.object.attach(data.object)
 
-# SetNeighborFilter specialization
 def __dispatchSetNeighborFilter(self, pos, radius, nf = Filters.SMOOTH_WEIGHT):
+    """
+        Dispatch the setNeighborFilter call. Also accept the neighbor filter
+        as input
+    """
     # Stores information for further dispatch
     # We leave the __dispatchCompute function the responsibility
     # of calling setNeighborFilter, which saves codes as we do not
@@ -103,13 +126,24 @@ def __dispatchSetNeighborFilter(self, pos, radius, nf = Filters.SMOOTH_WEIGHT):
 
     self._pos = pos
     self._radius = radius
-    
-# Create Dispatchers for Compute Objects and put them in the globals pyponca module
+
+def __dispatchgetattr(self, name):
+    """
+        Dynamic way to handle capability-specific functions. 
+        When a method is required, it is fowarded to the 
+        corresponding object
+    """
+    return getattr(self.object, name)
+
+# Dynamically create object based on what was exposed by the binding. 
 for co in _pyponca.ComputeObjectList:
     newco = type(co, (), {
         "__init__": lambda self: __initComputeObject(self, co),
-        "object": None,  
         "attach": __dispatchAttach,
-        "setNeighborFilter": __dispatchSetNeighborFilter
+        "setNeighborFilter": __dispatchSetNeighborFilter,
+        # Dynamically find the function within the subobject
+        "__getattr__": __dispatchgetattr
     })
+
+    # Register the new class within the pyponca namespace
     globals()[co] = newco

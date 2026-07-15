@@ -72,8 +72,11 @@ class TestAPI(unittest.TestCase):
                         object = pyponca.__dict__[co]()
                         
                         object.setNeighborFilter(pc, ts, flt)
+                        # From KDTree
                         object.attach(pyponca.KDTree(pc))
+                        # From PointCloud
                         object.attach(pyponca.PointCloud(pc, pc))
+                        # From a single array
                         object.attach(pc)
                     except NotImplementedError:
                         # We let notimplementederror that may come from classes that only support 3d
@@ -81,13 +84,15 @@ class TestAPI(unittest.TestCase):
     
     def test_compute_func(self):
         """
-            Test for potential memory errors and settings in 
+            Test for potential memory errors and settings in a classical loop
         """
         for co in _pyponca.ComputeObjectList:
             for pc in [self.pc3d, self.pc3f]:
                 ts = np.random.uniform(0, 1, (self.N)).astype(pc.dtype)
 
                 cls = pyponca.__dict__[co]   
+
+                # Helper function to try with different data
                 def test(data):
                     obj = cls()
                     obj.setNeighborFilter(pc, ts)
@@ -100,7 +105,6 @@ class TestAPI(unittest.TestCase):
                     test(pyponca.KDTree(pc))
                 except AttributeError:
                     pass
-
 
 if __name__ == "__main__":
     unittest.main()
