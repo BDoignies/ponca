@@ -58,14 +58,14 @@ namespace Ponca
              *
              * \tparam id The id of the method
              */
-            template <Method id>
-            static decltype(auto) GetMethod()
-            {
-                using MethodList = decltype(Filter<MethodProvider<(unsigned int)id>::template pred>());
-
-                static_assert(std::tuple_size_v<typename MethodList::FactoryEntries> == 1);
-                return std::get<0>(typename MethodList::FactoryEntries{}).object;
-            }
+            // template <Method id>
+            // static decltype(auto) GetMethod()
+            // {
+            //     using MethodList = decltype(Filter<MethodProvider<(unsigned int)id>::template pred>());
+            // 
+            //     static_assert(std::tuple_size_v<typename MethodList::FactoryEntries> == 1);
+            //     return std::get<0>(typename MethodList::FactoryEntries{}).object;
+            // }
 
             /**
              * \brief Applies a function to each entry of the list

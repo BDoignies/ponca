@@ -1,5 +1,5 @@
 /*
-This Source Code Form is subject to the terms of the Mozilla Public
+ This Source Code Form is subject to the terms of the Mozilla Public
  License, v. 2.0. If a copy of the MPL was not distributed with this
  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
@@ -16,7 +16,7 @@ This Source Code Form is subject to the terms of the Mozilla Public
  * \tparam T Scalar type
  */
 template <typename T>
-constexpr inline std::string MangleType()
+inline std::string MangleType()
 {
     if constexpr (std::is_same_v<T, float>)
         return "f";
@@ -72,25 +72,7 @@ inline std::string MangleArray(const ArrType& arr)
  * \tparam P Point type
  */
 template <typename P>
-constexpr inline std::string ManglePoint()
+inline std::string ManglePoint()
 {
     return std::to_string(P::Dim) + MangleType<typename P::Scalar>();
-}
-
-/**
- * \brief Register Mangling functions
- * 
- * These function are made available in python code for coherence
- * between the two codes. 
- * 
- * \param m The module. Expected to be the internal module. 
- */
-inline void RegisterManglingUtils(nanobind::module_& m)
-{
-    namespace nb = nanobind;
-
-    // No constraints on the array, should work with anything
-    m.def("_mangleArray", [](const nb::ndarray<>& arr) {
-        return MangleArray(arr);
-    });
 }

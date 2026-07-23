@@ -15,6 +15,8 @@ This Source Code Form is subject to the terms of the Mozilla Public
 
 namespace nb = nanobind;
 
+inline static constexpr const char* MangledPointName = "PN";
+
 /**
  * \brief Creates a Ponca point from two pointers
  */
@@ -53,7 +55,7 @@ struct PyPointCloud
     // Necessary for compatibility with KDTree
     using value_type = Point;
 
-    inline static const std::string PointName = ManglePoint<Point>() + "PN";
+    inline static const std::string PointName = ManglePoint<Point>() + MangledPointName;
     inline static const std::string ClassName = "PointCloud" + PointName;
     static constexpr const std::array<_Scalar, _Dim> NoData{};
     
@@ -78,11 +80,18 @@ struct PyPointCloud
      */
     PyPointCloud(const PyVectorArray<Point>& _pos) : m_pos(_pos)
     {
+        if (m_pos.ndim() != 2)
+            throw std::runtime_error("PointCloud only supports 2D arrays");
+        
+        if (_pos.stride(1) != 1)
+            throw std::runtime_error("PointCloud does not support non contiguous coordinates on second dimensions.");
+    
         // We emulate normal data with an array of stride 0
         void* data = reinterpret_cast<void*>(const_cast<Scalar*>(&NoData[0])); 
         m_normals = PyVectorArray<Point>(
-            data, { 1, _pos.shape(0) }, nb::handle(), { 0, sizeof(Scalar) }
+            data, { _pos.shape(0), 1 }, nb::handle(), { 0, sizeof(Scalar) }
         );
+
     }
 
     /**
@@ -94,7 +103,13 @@ struct PyPointCloud
     PyPointCloud(const PyVectorArray<Point>& _pos, const PyVectorArray<Point>& _normals) :
         m_pos(_pos), m_normals(_normals)
     { 
-        if (_pos.dtype() != _normals.dtype())
+        if (m_pos.ndim() != 2 || m_normals.ndim() != 2)
+            throw std::runtime_error("PointCloud only supports 2D arrays");
+        
+        if (m_pos.stride(1) != 1 || m_normals.stride(1) != 1)
+            throw std::runtime_error("PointCloud does not support non contiguous coordinates on second dimensions.");
+
+        if (m_pos.dtype() != m_normals.dtype())
             throw std::runtime_error("Type mismatch between position and normals.");
     }
 

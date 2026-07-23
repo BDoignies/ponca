@@ -7,6 +7,7 @@ This Source Code Form is subject to the terms of the Mozilla Public
 
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
+#include <Ponca/Ponca>
 #include <type_traits>
 
 namespace nb = nanobind;
@@ -61,7 +62,7 @@ inline typename Point::VectorType PyVectorToVector(const PyVector<Point>& vector
  * \param idx The index
  */
 template <typename Point>
-inline const typename Point::Scalar& PyScalarArrayIndex(const PyScalarArray<Point>& array, unsigned int idx)
+inline typename Point::Scalar PyScalarArrayIndex(const PyScalarArray<Point>& array, unsigned int idx)
 {
     return *(array.data() + idx * array.stride(0));
 }
@@ -77,7 +78,7 @@ inline const typename Point::Scalar& PyScalarArrayIndex(const PyScalarArray<Poin
  * \param idx The index
  */
 template <typename Point>
-inline typename Point::VectorType PyVectorArrayIndex(const PyVectorArray<Point>& array, unsigned int idx)
+inline auto PyVectorArrayIndex(const PyVectorArray<Point>& array, unsigned int idx)
 {
     using Map = Eigen::Map<typename Point::VectorType>;
     return Map(array.data() + idx * array.stride(0), Point::Dim, 1);
@@ -96,7 +97,7 @@ inline typename Point::VectorType PyVectorArrayIndex(const PyVectorArray<Point>&
  * \param j Second index
  */
 template <typename Point>
-inline typename Point::VectorType PyVectorVectorArrayIndex(const PyVectorVectorArray<Point>& array, unsigned int i, unsigned int j)
+inline auto PyVectorVectorArrayIndex(const PyVectorVectorArray<Point>& array, unsigned int i, unsigned int j)
 {
     using Map = Eigen::Map<typename Point::VectorType>;
     return Map(array.data() + i * array.stride(0) + j * array.stride(1), Point::Dim, 1);
@@ -110,7 +111,6 @@ inline nb::capsule PyStandardDeleter(T* p)
 {
     return nb::capsule(p, [](void* p) noexcept { delete reinterpret_cast<T*>(p); });
 }
-
 
 /**
  * \brief Shortcut to nb capsule for standard deletter
