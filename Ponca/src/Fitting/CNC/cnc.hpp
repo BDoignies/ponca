@@ -351,11 +351,11 @@ namespace Ponca::internal
 namespace Ponca
 {
     template <class P, TriangleGenerationMethod M>
-    template <typename PointContainer>
-    FIT_RESULT CNC<P, M>::compute(const PointContainer& points)
+    template <typename IteratorBegin, typename IteratorEnd>
+    FIT_RESULT CNC<P, M>::compute(const IteratorBegin& begin, const IteratorEnd& end)
     {
         init();
-        std::vector<unsigned int> indicesSample(points.size());
+        std::vector<unsigned int> indicesSample(std::distance(begin, end));
         std::iota(indicesSample.begin(), indicesSample.end(), 0);
 
         m_eCurrentState = internal::TriangleGenerator<M, P>::generate(indicesSample, points, m_nFilter, m_triangles);
