@@ -71,20 +71,14 @@ namespace Ponca
             {
                 using MethodList = decltype(Filter<MethodProvider<(unsigned int)id>::template pred>());
                 static_assert(MethodList::N == 1);
-                
+
                 MethodList list;
                 return std::get<0>(list.entries()).object;
             }
 
-            FactoryEntries& entries()
-            {
-                return m_entries;
-            }
+            FactoryEntries& entries() { return m_entries; }
 
-            const FactoryEntries& entries() const
-            {
-                return m_entries;
-            }
+            const FactoryEntries& entries() const { return m_entries; }
 
             /**
              * \brief Applies a function to each entry of the list

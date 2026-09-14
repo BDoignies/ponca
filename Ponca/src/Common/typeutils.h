@@ -19,4 +19,4 @@ namespace Ponca
         char value[N];
         constexpr StringLiteral(const char (&str)[N]) { std::copy_n(str, N, value); }
     };
-}
+} // namespace Ponca
