@@ -204,6 +204,9 @@ namespace Ponca
         PONCA_FITTING_APIDOC_SETWFUNC
         PONCA_MULTIARCH inline void setNeighborFilter(const NeighborFilter& _nFilter) { m_nFilter = _nFilter; }
 
+        PONCA_FITTING_APIDOC_SETWFUNC
+        PONCA_MULTIARCH inline const NeighborFilter& getNeighborFilter() const { return m_nFilter; }
+
         /*!
          * \brief Returns the triangles
          *
