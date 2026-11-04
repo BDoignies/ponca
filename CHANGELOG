@@ -46,6 +46,8 @@ the kNNGraphs to NeighborGraphs, and several bug-fixes and other improvements.
     - [fitting] Fix CNC not using the DistWeightFunc (#316)
     - [fitting] Fix compilation error in HeighField::operator==() (#304)
     - [fitting] Fix compilation error in NoWeightFilterBase (#304)
+    - [fitting] Fix CNC not returning proper fit status (#354)
+    - [fitting] Fix possible stack corruption in Weingarten (#354) 
     - [fitting] Remove virtual inheritance for BasketComputeObject (#312)
     - [spatialPartitioning] Fix regression introduced by the CUDA kdtree update (#306)
     - [common] Fix PONCA_ASSERT macro on MSVC and clang (#309)
