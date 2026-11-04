@@ -148,21 +148,21 @@ namespace Ponca
     Ponca::Factory. The following methods are available (`pyponca.ComputeObjectList` contains the list of names
     actually compiled in the module):
 
-    | Name                                  | Dimension  | Description                                                     |
-    |---------------------------------------|------------|-----------------------------------------------------------------|
-    | `DryFit`                              | 2D, 3D     | Does nothing, mostly useful for testing                         |
-    | `MeanPosition`                        | 2D, 3D     | Weighted mean position of the neighborhood                      |
-    | `MeanNormal`                          | 2D, 3D     | Weighted mean normal of the neighborhood                        |
-    | `CovarianceLineFit`                   | 2D, 3D     | Line fitted using the covariance of positions                   |
-    | `CovariancePlaneFit`                  | 2D, 3D     | Plane fitted using the covariance of positions                  |
-    | `MeanPlaneFit`                        | 2D, 3D     | Plane defined by the mean position and mean normal              |
-    | `SphereFit`                           | 2D, 3D     | Algebraic sphere fitted to positions                            |
-    | `APSS`                                | 2D, 3D     | Algebraic sphere fitted to positions and normals                |
-    | `UnorientedAPSS`                      | 2D, 3D     | Algebraic sphere fitted to positions and unoriented normals     |
-    | `MongePatchQuadratic`                 | 3D         | Quadratic height field in the tangent plane                     |
-    | `MongePatchRestrictedQuadratic`       | 3D         | Restricted quadratic height field in the tangent plane          |
-    | `CNCUniform`, `CNCIndependent`, `CNCHexagram`, `CNCAvgHexagram` | 3D | Corrected Normal Current curvature estimators  |
-    | `ASO`                                 | 3D         | APSS with spatial derivatives, provides principal curvatures    |
+    | Name                                      | Dimension  | Description                                                     |
+    |---------------------------------------    |------------|-----------------------------------------------------------------|
+    | `DryFit`                                  | 2D, 3D     | Does nothing, mostly useful for testing                         |
+    | `MeanPosition`                            | 2D, 3D     | Weighted mean position of the neighborhood                      |
+    | `MeanNormal`                              | 2D, 3D     | Weighted mean normal of the neighborhood                        |
+    | `CovarianceLineFit`                       | 2D, 3D     | Line fitted using the covariance of positions                   |
+    | `CovariancePlaneFit`                      | 2D, 3D     | Plane fitted using the covariance of positions                  |
+    | `MeanPlaneFit`                            | 2D, 3D     | Plane defined by the mean position and mean normal              |
+    | `SphereFit`                               | 2D, 3D     | Algebraic sphere fitted to positions                            |
+    | \ref OrientedSphereFit "APSS"             | 2D, 3D     | Algebraic sphere fitted to positions and normals                |
+    | \ref UnorientedSphereFit "UnorientedAPSS" | 2D, 3D     | Algebraic sphere fitted to positions and unoriented normals     |
+    | \ref MongePatch "MongePatchQuadratic"           | 3D         | Quadratic height field in the tangent plane                     |
+    | \ref MongePatch "MongePatchRestrictedQuadratic" | 3D         | Restricted quadratic height field in the tangent plane          |
+    | \ref CNC "CNCUniform, CNCIndependent, CNCHexagram, CNCAvgHexagram" | 3D | Corrected Normal Current curvature estimators  |
+    | \ref OrientedSphereDer "ASO"                                       | 3D | APSS with spatial derivatives, provides principal curvatures    |
 
     See \ref fittingreference for a description of each method. Compute objects take no argument at construction.
     The C++ specialization is only selected when `compute` is called, depending on the point cloud type and on the
