@@ -221,7 +221,7 @@ namespace Ponca
     | `POTENTIAL`                 | Optional   | `(M,)`           | Value of the fitted scalar field for all the centers, or for the set of coordinates given as argument (if any) |
     | `PRIMITIVE_GRADIENT`        | Optional   | `(M, D)`         | Gradient of the fitted scalar field (i.e. non normalized normal), for all the centers, or for the set of coordinates given as argument (if any) |
     | `PROJECTION`                | Required   | `(M, D)`         | Projection of the input point onto the fitted primitive                  |
-    | `ALGEBRAIC_SPHERE`          | None       | `(M, 2 + D)`     | Radius, Pratt norm, then center of the fitted sphere                     |
+    | `ALGEBRAIC_SPHERE`          | None       | `(M, 4 + 2D)`    | Radius, Pratt norm, center then uc, ul, uq the constant, linear and quadratic part of the algebraic sphere                    |
     | `GLS`                       | None       | `(M, 2 + D)`     | GLS parameters \f$\tau\f$, \f$\kappa\f$, then \f$\eta\f$                  |
     | `GLS_NORMALIZED`            | None       | `(M, 2 + D)`     | Scale-normalized GLS parameters \f$\tau\f$, \f$\kappa\f$, then \f$\eta\f$ |
     | `PRINCIPAL_CURVATURE`       | None       | `(M, 3 + 2D)`    | \f$k_{min}\f$, \f$k_{max}\f$, Gaussian curvature, then the directions of \f$k_{min}\f$ and \f$k_{max}\f$ |

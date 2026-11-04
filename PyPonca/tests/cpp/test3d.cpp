@@ -137,7 +137,7 @@ void GenerateComputeTestCase(std::ofstream& file, const std::vector<Point>& poin
         });
 
         Factory::Filter<Ponca::AlgebraicSphereProvider>().foreach ([&](auto& x) {
-            std::vector<std::array<Scalar, 2 + Point::Dim>> data;
+            std::vector<std::array<Scalar, 4 + 2 * Point::Dim>> data;
             std::vector<int> status;
             for (unsigned int i = 0; i < analysisLocations.size(); ++i)
             {
@@ -146,8 +146,7 @@ void GenerateComputeTestCase(std::ofstream& file, const std::vector<Point>& poin
                 fit.init();
                 fit.setNeighborFilter(MakeFilter(fit, i));
                 status.push_back(static_cast<int>(fit.compute(points)));
-                ;
-
+            
                 data.emplace_back();
                 data.back()[0] = fit.radius();
                 data.back()[1] = fit.prattNorm();
@@ -155,6 +154,12 @@ void GenerateComputeTestCase(std::ofstream& file, const std::vector<Point>& poin
                 auto center = fit.center();
                 for (size_t i = 0; i < Point::Dim; ++i)
                     data.back()[2 + i] = center[i];
+
+                data.back()[2 + Point::Dim ] = fit.uc();
+                auto ul = fit.ul();
+                for (size_t i = 0; i < Point::Dim; ++i)
+                    data.back()[2 + Point::Dim + 1 + i] = ul(i);
+                data.back()[2 + 2 * Point::Dim + 1] = fit.uq();
             }
 
             if (first)

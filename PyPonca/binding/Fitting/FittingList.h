@@ -155,8 +155,8 @@ inline std::vector<size_t> ComputeOutputDimension(Computation id, const nb::ndar
             if (array.data() != nullptr)
                 throw std::invalid_argument("ALGEBRAIC_SPHERE does not take any data as input.");
 
-            // Radius, Pratt Norm, center
-            return ComputeVectorDimGroup<Point, Scalar, Scalar, VectorType>(array);
+            // Radius, Pratt Norm, center, uc, ul, uq
+            return ComputeVectorDimGroup<Point, Scalar, Scalar, VectorType, Scalar, VectorType, Scalar>(array);
         }
         break;
     case Computation::GLS:
@@ -276,9 +276,13 @@ PONCA_MULTIARCH inline void ExtractComputation(size_t id, CO& object, size_t i, 
     case Computation::ALGEBRAIC_SPHERE:
         if constexpr (Ponca::ProvidesAlgebraicSphere<CO>)
         {
-            Write(base + 0 * out.stride[1], object.radius());
-            Write(base + 1 * out.stride[1], object.prattNorm());
-            Write(base + 2 * out.stride[1], object.center());
+            const size_t stride = out.stride[1];
+            Write(base + 0 * stride, object.radius());
+            Write(base + 1 * stride, object.prattNorm());
+            Write(base + 2 * stride, object.center());
+            Write(base + (2 + Point::Dim + 0)     * stride, object.uc());
+            Write(base + (2 + Point::Dim + 1)     * stride, object.ul());
+            Write(base + (2 + 2 * Point::Dim + 1) * stride, object.uq());
         }
         break;
     case Computation::GLS:
