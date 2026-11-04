@@ -103,7 +103,7 @@ void GenerateComputeTestCase(std::ofstream& file, const std::vector<Point>& poin
         });
 
         Factory::Filter<Ponca::PrincipalCurvaturesProvider>().foreach ([&](auto& x) {
-            std::vector<std::array<Scalar, 3 + 2 * Point::Dim>> data;
+            std::vector<std::array<Scalar, 2 + 2 * Point::Dim>> data;
             std::vector<int> status;
             for (unsigned int i = 0; i < analysisLocations.size(); ++i)
             {
@@ -117,15 +117,14 @@ void GenerateComputeTestCase(std::ofstream& file, const std::vector<Point>& poin
                 data.emplace_back();
                 data.back()[0] = fit.kmin();
                 data.back()[1] = fit.kmax();
-                data.back()[2] = fit.GaussianCurvature();
 
                 auto mindir = fit.kminDirection();
                 auto maxdir = fit.kmaxDirection();
 
                 for (size_t i = 0; i < Point::Dim; ++i)
-                    data.back()[3 + i] = mindir[i];
+                    data.back()[2 + i] = mindir[i];
                 for (size_t i = 0; i < Point::Dim; ++i)
-                    data.back()[3 + Point::Dim + i] = maxdir[i];
+                    data.back()[2 + Point::Dim + i] = maxdir[i];
             }
 
             if (first)

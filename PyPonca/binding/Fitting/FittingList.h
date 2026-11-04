@@ -145,8 +145,8 @@ inline std::vector<size_t> ComputeOutputDimension(Computation id, const nb::ndar
             if (array.data() != nullptr)
                 throw std::invalid_argument("PRINCIPAL_CURVATURE does not take any data as input.");
 
-            // kmin, kmax, gauss, kmindir, kmaxdir
-            return ComputeVectorDimGroup<Point, Scalar, Scalar, Scalar, VectorType, VectorType>(array);
+            // kmin, kmax, kmindir, kmaxdir
+            return ComputeVectorDimGroup<Point, Scalar, Scalar, VectorType, VectorType>(array);
         }
         break;
     case Computation::ALGEBRAIC_SPHERE:
@@ -268,9 +268,8 @@ PONCA_MULTIARCH inline void ExtractComputation(size_t id, CO& object, size_t i, 
         {
             Write(base + 0 * out.stride[1], object.kmin());
             Write(base + 1 * out.stride[1], object.kmax());
-            Write(base + 2 * out.stride[1], object.GaussianCurvature());
-            Write(base + 3 * out.stride[1], object.kminDirection());
-            Write(base + (3 + Point::Dim) * out.stride[1], object.kmaxDirection());
+            Write(base + 2 * out.stride[1], object.kminDirection());
+            Write(base + (2 + Point::Dim) * out.stride[1], object.kmaxDirection());
         }
         break;
     case Computation::ALGEBRAIC_SPHERE:
