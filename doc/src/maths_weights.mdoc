@@ -1,0 +1,90 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page maths_weights_page Weighted neighborhoods
+
+  \tableofcontents
+
+  \section maths_weights_def Local weighted least squares
+
+  All the fitting procedures of %Ponca solve *local* weighted least squares problems: each point contributes to the
+  fit at the evaluation position \f$\mathbf{p}\f$ with a weight that decreases with its distance to \f$\mathbf{p}\f$,
+  \f[
+    w_i = \varphi\left(\frac{\|\mathbf{q}_i - \mathbf{p}\|}{t}\right),
+  \f]
+  where \f$\varphi : \mathbb{R}^+ \to \mathbb{R}^+\f$ is a *weight kernel* and \f$t\f$ the scale
+  (Ponca::DistWeightFilter). A generic fit minimizes an energy of the form
+  \f$\sum_i w_i \, r_i(\theta)^2\f$, where \f$r_i(\theta)\f$ is the residual of the \f$i\f$-th point for the
+  parameters \f$\theta\f$ of the primitive. The solution thus approximates the data around \f$\mathbf{p}\f$, and the
+  scale \f$t\f$ sets the size of the region taken into account.
+
+  Two invariances are worth noting:
+  - **Normalization.** All the procedures are invariant to a global scaling of the weights
+    (\f$w_i \to c\, w_i\f$, \f$c > 0\f$): their solutions only involve weighted means \f$\langle \cdot \rangle\f$ or
+    eigenvectors of weighted sums. Kernels therefore do not need to be normalized, and the fits only depend on the
+    *relative* weights of the points.
+  - **Scale.** Scaling the data and the scale together (\f$\mathbf{q}_i \to \lambda \mathbf{q}_i\f$,
+    \f$\mathbf{p} \to \lambda \mathbf{p}\f$, \f$t \to \lambda t\f$) leaves the weights unchanged: positions and
+    distances of the fitted primitives scale by \f$\lambda\f$, curvatures by \f$1/\lambda\f$. This is the basis of the
+    scale-invariant descriptors of \ref maths_gls.
+
+  Every procedure accumulates weighted moments of the neighbors (e.g. \f$\sum_i w_i\f$, \f$\sum_i w_i \mathbf{x}_i\f$,
+  \f$\sum_i w_i \mathbf{x}_i \mathbf{x}_i^T\f$) in a single pass (`addLocalNeighbor`), then solves for the parameters
+  of the primitive (`finalize`). The local coordinates \f$\mathbf{x}_i = \mathbf{q}_i - \mathbf{p}\f$ keep these
+  moments small, which limits the round-off errors when the point cloud is far from the origin.
+
+  \section maths_weights_kernels Weight kernels
+
+  \image html maths/maths_kernels.png "Figure 1. Weight kernels and their first derivatives. The constant kernel is discontinuous at x = 1; the smooth, Wendland and compact exponential kernels vanish at x = 1 with an increasing number of derivatives; the Gaussian kernel is not compact."
+
+  \snippet ponca_numpy.py kernels
+
+  | Kernel                              | \f$\varphi(x)\f$ on \f$[0, 1)\f$          | Regularity of \f$\varphi\f$ at \f$x = 1\f$ | Remarks |
+  |-------------------------------------|---------------------------------------------|------------------------|---------|
+  | Ponca::ConstantWeightKernel         | \f$1\f$                                     | discontinuous          | plain least squares in the ball; the fits jump when a point enters or leaves the ball |
+  | Ponca::SmoothWeightKernel           | \f$(x^2-1)^2\f$                             | \f$C^1\f$              | \f$\varphi(1) = \varphi'(1) = 0\f$, \f$\varphi''(1) = 8\f$ |
+  | Ponca::PolynomialSmoothWeightKernel | \f$(x^n-1)^m\f$                             | \f$C^{m-1}\f$          | the smooth kernel is \f$m = n = 2\f$ |
+  | Ponca::WendlandWeightKernel         | \f$(1-x)^4 (4x+1)\f$                        | \f$C^2\f$              | Wendland's compactly supported radial function \f$\psi_{3,1}\f$ |
+  | Ponca::CompactExpWeightKernel       | \f$\exp\left(\frac{-x^2}{1-x^2}\right)\f$   | \f$C^\infty\f$         | all the derivatives vanish at \f$x = 1\f$ |
+  | Ponca::GaussianWeightKernel         | \f$\exp(-x^2/2)\f$ on \f$\mathbb{R}^+\f$    | not compact            | standard deviation \f$t\f$, \f$\varphi(1) \approx 0.61\f$ |
+  | Ponca::SingularWeightKernel         | \f$1/x^2\f$                                 | discontinuous          | \f$\varphi(0) = +\infty\f$: interpolating fits \cite Alexa:2009:Hermite |
+
+  As functions of the evaluation position, the weights \f$\mathbf{p} \mapsto \varphi(\|\mathbf{q}_i - \mathbf{p}\| / t)\f$
+  inherit the regularity of \f$\varphi\f$, except at \f$\mathbf{p} = \mathbf{q}_i\f$, where the norm is not
+  differentiable: the weight is differentiable there when \f$\varphi'(0) = 0\f$, which holds for all the kernels
+  above except the singular one. Since every fitted quantity is a smooth function of the weighted moments, **the
+  regularity of the kernel bounds the regularity of the fits** with respect to \f$\mathbf{p}\f$ and \f$t\f$: a
+  \f$C^1\f$ kernel gives continuous first derivatives, while second order derivatives (used by Ponca::MlsSphereFitDer)
+  call for a \f$C^2\f$ kernel. With a constant kernel, the fits are piecewise smooth functions of \f$\mathbf{p}\f$
+  and \f$t\f$, discontinuous each time a point crosses the boundary of the ball.
+
+  \section maths_weights_derivatives Derivatives of the weights
+
+  Let \f$d_i = \|\mathbf{x}_i\|\f$, \f$\hat{\mathbf{x}}_i = \mathbf{x}_i / d_i\f$ and \f$r_i = d_i / t\f$. Since
+  \f$\mathbf{x}_i = \mathbf{q}_i - \mathbf{p}\f$, the first derivatives of the weights with respect to the scale and to
+  the evaluation position are
+  \f[
+    \frac{\partial w_i}{\partial t} = -\frac{d_i}{t^2}\,\varphi'(r_i), \qquad
+    \nabla_{\mathbf{p}}\, w_i = -\frac{\hat{\mathbf{x}}_i}{t}\,\varphi'(r_i),
+  \f]
+  and the second derivatives are
+  \f{align*}{
+    \frac{\partial^2 w_i}{\partial t^2} &= \frac{2 d_i}{t^3}\,\varphi'(r_i) + \frac{d_i^2}{t^4}\,\varphi''(r_i), \\
+    \nabla^2_{\mathbf{p}}\, w_i &= \frac{\varphi'(r_i)}{t\, d_i} \left(\mathbf{I} - \hat{\mathbf{x}}_i\hat{\mathbf{x}}_i^T\right)
+      + \frac{\varphi''(r_i)}{t^2}\, \hat{\mathbf{x}}_i\hat{\mathbf{x}}_i^T, \\
+    \frac{\partial}{\partial t} \nabla_{\mathbf{p}}\, w_i &= \frac{\mathbf{x}_i}{t^2} \left( \frac{\varphi'(r_i)}{d_i} + \frac{\varphi''(r_i)}{t} \right).
+  \f}
+
+  Ponca::DistWeightFilter computes these quantities (`scaledw`, `spacedw`, `scaled2w`, `spaced2w`, `scaleSpaced2w`;
+  the spatial derivatives are expressed with respect to the neighbor position \f$\mathbf{q}_i\f$, i.e. with the
+  opposite sign for the first order). The derivative extensions receive \f$\partial w_i / \partial t\f$ and
+  \f$\nabla_{\mathbf{p}} w_i\f$ for each neighbor (see \ref fitting_derivatives_layout), from which the derivatives of
+  all the fitted quantities follow by the chain rule, see \ref maths_derivatives_page.
+ */
+} // namespace Ponca

@@ -118,6 +118,9 @@ namespace Ponca
     wrong sign;
   - unsigned quantities (surface variation, distance to the PCA plane) only measure the magnitude of the curvature.
 
+  The definitions behind these conventions, and the formulas of each estimator, are given in
+  \ref maths_curvature_page.
+
   The principal directions are tangent vectors, defined up to their sign. Normalize them before use: in the current
   version, the directions computed through Ponca::NormalDerivativeWeingartenEstimator (APSS, ASO, PCA normal
   derivatives) are not unit vectors (their norm is \f$\sqrt{3}\f$), whereas those of the Monge patches and of the CNC

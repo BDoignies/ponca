@@ -1,0 +1,131 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page maths_derivatives_page Differentiating the fits
+
+  \tableofcontents
+
+  \section maths_der_principle Principle
+
+  A fit computed at the evaluation position \f$\mathbf{p}\f$ and scale \f$t\f$ is a function of
+  \f$\theta \in \{t, p_1, \dots, p_d\}\f$ through the weights \f$w_i(\mathbf{p}, t)\f$ only: the data are fixed.
+  Ponca::BasketDiff computes the derivatives of the fitted quantities with respect to these variables
+  (\ref fitting_derivatives). The derivative extensions apply the chain rule to the weighted moments accumulated by
+  the fits: for any moment \f$S = \sum_i w_i\, g_i\f$ of data \f$g_i\f$,
+  \f[
+    \frac{\partial S}{\partial \theta} = \sum_i \frac{\partial w_i}{\partial \theta}\, g_i ,
+  \f]
+  with the derivatives of the weights given in \ref maths_weights_derivatives. In this computation, the coordinates of
+  the neighbors are held fixed: the derivatives describe the variation of the parameters of the primitive in a frame
+  that does not move with \f$\mathbf{p}\f$. Quantities attached to the moving evaluation position then receive an
+  additional term. For instance, the field at the evaluation position, \f$\tau(\mathbf{p}) =
+  s_{\mathbf{u}(\mathbf{p})}(\mathbf{p})\f$, has the space derivative
+  \f[
+    \nabla_{\mathbf{p}}\,\tau = \nabla_{\mathbf{p}}\, u_c + \mathbf{u}_l ,
+  \f]
+  since \f$\partial s_{\mathbf{u}}(\mathbf{x}) / \partial u_c = 1\f$ and \f$\nabla s_{\mathbf{u}}(\mathbf{0}) =
+  \mathbf{u}_l\f$ at the origin of the local frame (`dPotential()`). Similarly, the normal
+  \f$\mathbf{n}(\mathbf{p}) = \mathbf{g} / \|\mathbf{g}\|\f$, with \f$\mathbf{g} = \nabla s_{\mathbf{u}(\mathbf{p})}(\mathbf{p})\f$,
+  has the derivative (`dNormal()`)
+  \f[
+    \frac{\partial \mathbf{n}}{\partial \theta} = \frac{1}{\|\mathbf{g}\|}\left(\mathbf{I} - \mathbf{n}\mathbf{n}^T\right)
+    \frac{\partial \mathbf{g}}{\partial \theta},
+    \qquad
+    \frac{\partial \mathbf{g}}{\partial \mathbf{p}} = \frac{\partial \mathbf{u}_l}{\partial \mathbf{p}} + 2 u_q \mathbf{I},
+    \qquad
+    \frac{\partial \mathbf{g}}{\partial t} = \frac{\partial \mathbf{u}_l}{\partial t}.
+  \f]
+
+  \section maths_der_means Weighted means
+
+  By the quotient rule, the derivative of a weighted mean \f$\langle g \rangle = \frac{1}{W}\sum_i w_i g_i\f$ is
+  \f[
+    \frac{\partial \langle g \rangle}{\partial \theta} = \frac{1}{W}\sum_i \frac{\partial w_i}{\partial \theta}
+      \left(g_i - \langle g \rangle\right),
+  \f]
+  which gives the derivatives of the barycenter (Ponca::MeanPositionDer) and of the mean normal
+  (Ponca::MeanNormalDer).
+
+  \section maths_der_covariance Covariance and plane
+
+  Since \f$\sum_i w_i (\mathbf{x}_i - \mathbf{b}) = \mathbf{0}\f$, the terms involving the derivative of the barycenter
+  cancel in the derivative of the covariance:
+  \f[
+    \frac{\partial \mathbf{C}}{\partial \theta} = \frac{1}{W}\sum_i \frac{\partial w_i}{\partial \theta}
+      (\mathbf{x}_i - \mathbf{b})(\mathbf{x}_i - \mathbf{b})^T - \frac{1}{W}\frac{\partial W}{\partial \theta}\,\mathbf{C}.
+  \f]
+  For a simple eigenvalue \f$\lambda_0\f$ of the symmetric matrix \f$\mathbf{C}\f$, first order perturbation theory
+  gives the derivatives of the eigenvalue and of the normal of the plane:
+  \f[
+    \frac{\partial \lambda_0}{\partial \theta} = \mathbf{v}_0^T \frac{\partial \mathbf{C}}{\partial \theta} \mathbf{v}_0,
+    \qquad
+    \frac{\partial \mathbf{v}_0}{\partial \theta} = -\left(\mathbf{C} - \lambda_0\mathbf{I}\right)^{+}
+      \frac{\partial \mathbf{C}}{\partial \theta}\, \mathbf{v}_0
+      = -\sum_{k > 0} \frac{\mathbf{v}_k^T \frac{\partial \mathbf{C}}{\partial \theta} \mathbf{v}_0}{\lambda_k - \lambda_0}\,\mathbf{v}_k ,
+  \f]
+  where \f$^{+}\f$ denotes the pseudo-inverse. Ponca::CovariancePlaneDer evaluates this expression in the eigenbasis
+  computed by the fit (3D only). The derivative is ill-conditioned when \f$\lambda_1 - \lambda_0\f$ is small, i.e.
+  when the neighborhood is not flat enough for its normal to be well defined. The last term of
+  \f$\partial \mathbf{C} / \partial \theta\f$ is collinear to \f$\mathbf{v}_0\f$ when applied to it, and is therefore
+  cancelled by the pseudo-inverse.
+
+  \warning In the current version, Ponca::CovariancePlaneDer omits the factor \f$1/W\f$ in the first term of
+  \f$\partial \mathbf{C} / \partial \theta\f$, which scales the normal derivatives by \f$W\f$ (see the warning of
+  \ref fitting_curvature).
+
+  \section maths_der_spheres Sphere fits
+
+  \subsection maths_der_oriented Oriented sphere fit
+
+  Ponca::OrientedSphereDer differentiates the closed form of \ref maths_spheres_oriented. Writing the solution with the
+  sums \f$S_w = W\f$, \f$\mathbf{S}_x = \sum_i w_i\mathbf{x}_i\f$, \f$\mathbf{S}_n = \sum_i w_i\mathbf{n}_i\f$,
+  \f$S_{xn} = \sum_i w_i \mathbf{x}_i^T\mathbf{n}_i\f$ and \f$S_{xx} = \sum_i w_i \mathbf{x}_i^T\mathbf{x}_i\f$,
+  \f[
+    u_q = \frac{1}{2}\frac{N}{D}, \quad N = S_{xn} - \frac{\mathbf{S}_x^T\mathbf{S}_n}{S_w}, \quad
+    D = S_{xx} - \frac{\mathbf{S}_x^T\mathbf{S}_x}{S_w}, \quad
+    \mathbf{u}_l = \frac{\mathbf{S}_n - 2u_q\mathbf{S}_x}{S_w}, \quad
+    u_c = -\frac{\mathbf{u}_l^T\mathbf{S}_x + u_q S_{xx}}{S_w},
+  \f]
+  each sum has the derivative \f$S' = \sum_i w_i' g_i\f$ (where \f$'\f$ denotes \f$\partial / \partial \theta\f$), and
+  the parameters follow by the quotient and product rules:
+  \f{align*}{
+    u_q' &= \frac{1}{2}\,\frac{N' D - N D'}{D^2}, \\
+    \mathbf{u}_l' &= \frac{1}{S_w}\left(\mathbf{S}_n' - \mathbf{u}_l S_w' - 2\left(u_q'\mathbf{S}_x + u_q\mathbf{S}_x'\right)\right), \\
+    u_c' &= -\frac{1}{S_w}\left(\mathbf{S}_x^T\mathbf{u}_l' + S_{xx}\,u_q' + \mathbf{u}_l^T\mathbf{S}_x' + u_q S_{xx}' + S_w' u_c\right).
+  \f}
+
+  The derivatives of the Pratt-normalized parameters \f$\bar{\mathbf{u}} = \mathbf{u} / \|\mathbf{u}\|_P\f$ (and thus of
+  the GLS parameters, Ponca::GLSDer) follow from
+  \f[
+    \left(\|\mathbf{u}\|_P^2\right)' = 2\,\mathbf{u}_l^T\mathbf{u}_l' - 4\left(u_c' u_q + u_c u_q'\right), \qquad
+    \bar{\mathbf{u}}' = \frac{\mathbf{u}'}{\|\mathbf{u}\|_P} - \frac{\left(\|\mathbf{u}\|_P^2\right)'}{2\|\mathbf{u}\|_P^3}\,\mathbf{u}.
+  \f]
+  For instance, \f$\kappa' = 2\bar{u}_q'\f$, and the space derivatives of \f$\tau\f$ include the term
+  \f$\mathbf{u}_l / \|\mathbf{u}\|_P\f$ of \ref maths_der_principle.
+
+  \subsection maths_der_unoriented Unoriented sphere fit
+
+  Ponca::UnorientedSphereDer differentiates the generalized eigenvalue problem
+  \f$\mathbf{A}\mathbf{v}_i = \lambda_i\mathbf{Q}\mathbf{v}_i\f$ of \ref maths_spheres_unoriented. Differentiating it
+  and multiplying on the left by another eigenvector \f$\mathbf{v}_j\f$ (\f$\mathbf{A}\f$ and \f$\mathbf{Q}\f$ are
+  symmetric) gives the components of the derivative of the solution:
+  \f[
+    \left(\mathbf{Q}\mathbf{v}_j\right)^T \mathbf{v}_i' = \frac{\mathbf{v}_j^T\left(\mathbf{A}' - \lambda_i\mathbf{Q}'\right)\mathbf{v}_i}{\lambda_i - \lambda_j},
+    \qquad j \neq i ,
+  \f]
+  which requires the largest eigenvalue to be simple.
+
+  \subsection maths_der_second Second order derivatives
+
+  Ponca::MlsSphereFitDer also differentiates the first derivatives, using the second derivatives of the weights
+  (\ref maths_weights_derivatives). This gives the Hessian of the MLS function \f$f\f$ of \ref maths_mls_def, hence the
+  derivative of the normal of the MLS surface, used by the Algebraic Shape Operator (\ref maths_curvature_normal).
+  These derivatives require a kernel with valid second derivatives.
+ */
+} // namespace Ponca

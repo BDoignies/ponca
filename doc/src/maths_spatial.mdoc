@@ -1,0 +1,56 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page maths_spatial_page Spatial data structures
+
+  \tableofcontents
+
+  \section maths_spatial_kdtree Kd-trees
+
+  A kd-tree recursively partitions the space with axis-aligned hyperplanes. In %Ponca (Ponca::KdTreeBase::build),
+  each node computes the axis-aligned bounding box of its points, and splits it at its center, along its largest
+  dimension: the points whose coordinate is smaller than the center go to the first child, the others to the second
+  child. A node becomes a leaf when it contains at most `minCellSize()` points, or at the maximal depth.
+
+  \snippet ponca_numpy.py kdtree
+
+  Splitting at the middle of the box (rather than at the median of the points) bounds the aspect ratio of the cells:
+  every split halves the largest side of the box. The tree is not balanced on non-uniform data, but its depth grows
+  with the logarithm of the ratio between the extent of the data and the distance between the points; it is bounded
+  by `Traits::MAX_DEPTH`. The construction costs \f$O(n)\f$ per level, i.e. \f$O(n \log n)\f$ for well distributed
+  data.
+
+  \subsection maths_spatial_queries Queries
+
+  The queries traverse the tree depth-first with a stack (Ponca::KdTreeQuery). At an inner node, the child containing
+  the query position is visited first; the other child is only visited if the squared distance between the query and
+  the splitting hyperplane, \f$(q_k - s)^2\f$ for a split at \f$x_k = s\f$, is smaller than the squared search radius.
+  The search radius is fixed for range queries, and shrinks for nearest and k-nearest neighbor queries, as it is the
+  distance to the farthest of the best candidates found so far (stored in a Ponca::LimitedPriorityQueue). The
+  pruning test only uses the last splitting plane, a lower bound of the distance to the cell: a few cells that do not
+  intersect the ball may be visited (Figure 1). For a range query returning \f$k\f$ points, the cost is typically
+  \f$O(\log n + k)\f$ on well-distributed data.
+
+  \image html maths/maths_kdtree.png "Figure 1. Bounding boxes of the leaves of a 2D kd-tree built with the splitting rule of Ponca (here with at most 12 points per leaf, 64 by default), on uniform points plus a dense cluster. The leaves visited by a range query are filled: they include all the leaves intersecting the ball, and a few others that the pruning test cannot discard."
+
+  \section maths_spatial_graphs Neighbor graphs
+
+  A k-nearest neighbor graph (Ponca::KnnGraph) stores, for each point, its \f$k\f$ nearest neighbors, computed once
+  with \f$n\f$ k-nearest neighbor queries in the kd-tree. A neighbor graph (Ponca::NeighborGraph) stores, for each
+  point, all the points closer than a distance \f$\varepsilon\f$ (an \f$\varepsilon\f$-graph). Querying the neighbors
+  of a point then amounts to reading a range of indices.
+
+  The range queries of the graphs explore the graph from the query point, and only cross edges whose end point lies in
+  the ball. They therefore return the points of the ball connected to the query by paths of points in the ball: a
+  subset of the result of the kd-tree range query, which follows the connectivity of the sampled surface. With a k-NN
+  graph, this subset is complete when \f$k\f$ is large enough with respect to the sampling density in the ball; when
+  the ball contains several sheets of the surface that the graph does not connect, only the sheet containing the query
+  is returned.
+ */
+} // namespace Ponca

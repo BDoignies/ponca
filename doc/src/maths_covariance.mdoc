@@ -1,0 +1,119 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page maths_covariance_page Covariance analysis: planes, lines and descriptors
+
+  \tableofcontents
+
+  \section maths_cov_moments Barycenter and covariance
+
+  The weighted barycenter and covariance matrix of the neighborhood are (Ponca::MeanPosition, Ponca::CovarianceBase)
+  \f[
+    \mathbf{b} = \langle \mathbf{x} \rangle = \frac{1}{W}\sum_i w_i \mathbf{x}_i, \qquad
+    \mathbf{C} = \left\langle (\mathbf{x} - \mathbf{b})(\mathbf{x} - \mathbf{b})^T \right\rangle
+               = \langle \mathbf{x}\mathbf{x}^T \rangle - \mathbf{b}\mathbf{b}^T .
+  \f]
+  The second expression is the one used by %Ponca: it only requires to accumulate \f$\sum_i w_i\f$,
+  \f$\sum_i w_i \mathbf{x}_i\f$ and \f$\sum_i w_i \mathbf{x}_i\mathbf{x}_i^T\f$ in a single pass over the neighbors.
+  Its numerical cancellation is limited by the use of local coordinates, which are of the order of \f$t\f$.
+
+  \f$\mathbf{C}\f$ is symmetric positive semi-definite; its eigen decomposition
+  \f$\mathbf{C} = \sum_k \lambda_k \mathbf{v}_k\mathbf{v}_k^T\f$, with \f$0 \leq \lambda_0 \leq \dots \leq
+  \lambda_{d-1}\f$, is the weighted Principal Component Analysis (PCA) of the neighborhood:
+  \f$\lambda_k\f$ is the weighted variance of the points along \f$\mathbf{v}_k\f$.
+
+  \snippet ponca_numpy.py covariance
+
+  \section maths_cov_plane Plane fitting
+
+  Ponca::CovariancePlaneFit fits the hyperplane \f$\{\mathbf{x} : \mathbf{n}^T\mathbf{x} = c\}\f$,
+  \f$\|\mathbf{n}\| = 1\f$, that minimizes the weighted sum of the squared orthogonal distances
+  \f[
+    E(\mathbf{n}, c) = \left\langle \left(\mathbf{n}^T\mathbf{x} - c\right)^2 \right\rangle .
+  \f]
+  For a fixed \f$\mathbf{n}\f$, the minimum in \f$c\f$ is reached at \f$c = \mathbf{n}^T\mathbf{b}\f$: the plane
+  goes through the barycenter. Then \f$E = \mathbf{n}^T\mathbf{C}\,\mathbf{n}\f$ is a Rayleigh quotient, minimal for
+  the eigenvector of the smallest eigenvalue: \f$\mathbf{n} = \mathbf{v}_0\f$ and \f$E = \lambda_0\f$. The residual
+  \f$\lambda_0\f$ measures the thickness of the neighborhood in the normal direction.
+
+  The sign of an eigenvector is arbitrary: the fitted plane is not oriented (`isSigned()` is `false`). Its scalar field
+  is the signed distance \f$s(\mathbf{x}) = \mathbf{n}^T(\mathbf{x} - \mathbf{b})\f$, and the projection of a point
+  is \f$\mathbf{x} - s(\mathbf{x})\,\mathbf{n}\f$. The eigenvectors \f$\mathbf{v}_1, \dots, \mathbf{v}_{d-1}\f$
+  span the tangent plane: they define the local frame used by `worldToTangentPlane` and by the Monge patches (see
+  \ref maths_curvature_monge).
+
+  Ponca::MeanPlaneFit uses the normals instead: its plane goes through the barycenter, with the normalized weighted
+  mean of the normals \f$\langle \mathbf{n} \rangle / \|\langle \mathbf{n} \rangle\|\f$ as normal, which makes it
+  oriented.
+
+  \section maths_cov_line Line fitting
+
+  Ponca::CovarianceLineFit fits the line \f$\{\mathbf{o} + \mu\,\mathbf{e}\}\f$, \f$\|\mathbf{e}\| = 1\f$, minimizing
+  the weighted squared distances \f$\left\langle \|(\mathbf{I} - \mathbf{e}\mathbf{e}^T)(\mathbf{x} - \mathbf{o})\|^2
+  \right\rangle\f$. The line goes through the barycenter, and
+  \f$\left\langle \|(\mathbf{I} - \mathbf{e}\mathbf{e}^T)(\mathbf{x} - \mathbf{b})\|^2 \right\rangle =
+  \operatorname{tr}(\mathbf{C}) - \mathbf{e}^T\mathbf{C}\,\mathbf{e}\f$ is minimal for the eigenvector of the
+  *largest* eigenvalue, \f$\mathbf{e} = \mathbf{v}_{d-1}\f$. The scalar field of Ponca::Line is the squared distance
+  to the line, which is not signed and whose gradient vanishes on the line.
+
+  \section maths_cov_features Covariance descriptors
+
+  The eigenvalues describe the shape of the neighborhood. Ponca::CovarianceBase provides:
+
+  | Descriptor                                        | Definition                                                          | Typical values |
+  |---------------------------------------------------|---------------------------------------------------------------------|----------------|
+  | `surfaceVariation()` \cite Pauly:2002:PSSimplification | \f$d\,\lambda_0 / \sum_k \lambda_k\f$                          | 0 on a hyperplane, 1 for an isotropic neighborhood |
+  | `planarity()` \cite Guinard:2017 (3D)             | \f$(\lambda_1 - \lambda_0)/\lambda_2\f$                             | high on planes |
+  | `linearity()` \cite Guinard:2017 (3D)             | \f$(\lambda_2 - \lambda_1)/\lambda_2\f$                             | high on lines |
+  | `sphericity()` \cite Guinard:2017 (3D)            | \f$\lambda_0/\lambda_2\f$                                           | high on volumes |
+  | `anisotropy()` \cite Guinard:2017                 | \f$(\lambda_{d-1} - \lambda_0)/\lambda_{d-1}\f$                     | |
+  | `eigenentropy()` \cite Guinard:2017               | \f$-\sum_k \lambda_k \ln \lambda_k\f$                               | computed on the raw eigenvalues |
+
+  Pauly et al. define the surface variation as \f$\lambda_0 / \sum_k \lambda_k \in [0, 1/d]\f$; %Ponca multiplies it
+  by \f$d\f$ to map it to \f$[0, 1]\f$. The descriptors are invariant to a joint scaling of the data and of the scale,
+  except the eigenentropy.
+
+  \section maths_cov_asymptotics Behavior on smooth surfaces
+
+  Covariance analysis also captures the curvature of the sampled surface. Consider a smooth surface of
+  \f$\mathbb{R}^3\f$ through \f$\mathbf{p}\f$, written as a graph over its tangent plane,
+  \f[
+    z = \frac{1}{2}\left(k_1 u^2 + k_2 v^2\right) + O\left((u^2 + v^2)^{3/2}\right),
+  \f]
+  where \f$k_1, k_2\f$ are the principal curvatures (the normal points to \f$z > 0\f$), sampled uniformly with constant
+  weights in a ball of radius \f$t\f$. To leading order, the neighborhood is the disk of radius \f$t\f$ of the tangent
+  plane, on which \f$\langle u^2 \rangle = \langle v^2 \rangle = t^2/4\f$, \f$\langle u^4 \rangle = t^4/8\f$ and
+  \f$\langle u^2 v^2 \rangle = t^4/24\f$. Then:
+  - the barycenter is offset along the normal by
+    \f$\langle z \rangle = \frac{1}{2}(k_1 + k_2)\frac{t^2}{4} = \frac{H t^2}{4}\f$, where \f$H\f$ is the mean
+    curvature: the distance \f$\delta\f$ between the evaluation point and the fitted plane satisfies
+    \f$\delta \approx |H|\, t^2 / 4\f$. This is the curvature estimator of Digne et al. \cite Digne:2011:scalespacemeshing
+    (`potential()` of the plane fit, up to a factor that depends on the kernel: with a weight
+    \f$\psi(\rho)\f$ of the distance \f$\rho\f$ to \f$\mathbf{p}\f$, \f$\langle z \rangle = H \langle \rho^2 \rangle / 2\f$,
+    e.g. \f$H t^2 / 8\f$ for Ponca::SmoothWeightKernel);
+  - the tangent eigenvalues are \f$\lambda_1 \approx \lambda_2 \approx t^2/4\f$, and the normal one is the variance of
+    \f$z\f$:
+    \f[
+      \lambda_0 \approx \frac{1}{4}\operatorname{Var}\left(k_1 u^2 + k_2 v^2\right)
+      = t^4\left(\frac{k_1^2 + k_2^2}{64} - \frac{k_1 k_2}{96}\right)
+      = t^4\left(\frac{H^2}{16} - \frac{K}{24}\right),
+    \f]
+    so that the surface variation behaves as
+    \f$\sigma = 3\lambda_0 / (\lambda_0 + \lambda_1 + \lambda_2) \approx \frac{t^2}{8}\left(3H^2 - 2K\right)\f$, i.e.
+    \f$t^2 / (8 R^2)\f$ on a sphere of radius \f$R\f$. The surface variation is thus quadratic in the curvatures and
+    in the scale: it is an unsigned measure, which mixes the mean and Gaussian curvatures.
+
+  \image html maths/maths_covariance.png "Figure 1. (a) Covariance analysis of a weighted 2D neighborhood: the fitted line goes through the barycenter, which is offset from the evaluation point towards the concave side. (b, c) Distance to the PCA plane and surface variation measured on a densely sampled unit sphere with constant weights, compared with the expansions above."
+
+  These expansions also show the limits of a planar primitive: the fitted plane does not go through the surface at
+  \f$\mathbf{p}\f$, but is offset by \f$H t^2 / 4\f$ along the normal, so that projections onto it are biased on curved
+  surfaces. Sphere fits capture the first-order variation of the normal, and remove this bias on spheres
+  (see \ref maths_spheres_page).
+ */
+} // namespace Ponca

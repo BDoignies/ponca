@@ -1,0 +1,168 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page maths_curvature_page Curvature estimation
+
+  \tableofcontents
+
+  \section maths_curvature_recall Curvature of a surface
+
+  Let \f$S\f$ be a smooth surface of \f$\mathbb{R}^3\f$ with unit normal field \f$\mathbf{n}\f$. At a point
+  \f$\mathbf{x}\f$, the differential of the normal maps the tangent plane \f$T_{\mathbf{x}}S\f$ to itself (since
+  \f$\|\mathbf{n}\| = 1\f$, its derivatives are orthogonal to \f$\mathbf{n}\f$). In an orthonormal basis
+  \f$\mathbf{B} = (\mathbf{t}_1, \mathbf{t}_2)\f$ of the tangent plane, it is represented by the \f$2 \times 2\f$ matrix
+  \f[
+    \mathbf{W} = \mathbf{B}^T\, \nabla\mathbf{n}\, \mathbf{B},
+  \f]
+  the *Weingarten map*, or *shape operator* (up to its sign, see \ref maths_curvature_sign). It is self-adjoint: its
+  eigenvalues are the principal curvatures \f$k_{\min} \leq k_{\max}\f$, and its eigenvectors the principal directions.
+  The normal curvature in a unit tangent direction \f$\mathbf{e}\f$ is \f$\mathbf{e}^T\mathbf{W}\mathbf{e}\f$, which
+  ranges in \f$[k_{\min}, k_{\max}]\f$. The mean and Gaussian curvatures are
+  \f[
+    H = \frac{1}{2}\operatorname{tr}\mathbf{W} = \frac{k_{\min} + k_{\max}}{2}, \qquad
+    K = \det\mathbf{W} = k_{\min}\, k_{\max} .
+  \f]
+
+  For a parametrized surface \f$\mathbf{x}(u, v)\f$, the shape operator is given by the first and second fundamental
+  forms \f$\mathbf{I} = \begin{pmatrix} E & F \\ F & G\end{pmatrix}\f$, \f$E = \mathbf{x}_u^T\mathbf{x}_u\f$,
+  \f$F = \mathbf{x}_u^T\mathbf{x}_v\f$, \f$G = \mathbf{x}_v^T\mathbf{x}_v\f$, and
+  \f$\mathbf{II} = \begin{pmatrix} L & M \\ M & N\end{pmatrix}\f$, \f$L = \mathbf{x}_{uu}^T\mathbf{n}\f$,
+  \f$M = \mathbf{x}_{uv}^T\mathbf{n}\f$, \f$N = \mathbf{x}_{vv}^T\mathbf{n}\f$:
+  \f[
+    \mathbf{W} = \mathbf{I}^{-1}\,\mathbf{II}, \qquad
+    H = \frac{E N - 2 F M + G L}{2\left(E G - F^2\right)}, \qquad
+    K = \frac{L N - M^2}{E G - F^2} .
+  \f]
+
+  %Ponca estimates curvatures from point clouds in three ways: by fitting a parametrized surface (Monge patches), by
+  differentiating a fitted normal field (APSS, ASO, PCA normals), and by integrating curvature measures over triangles
+  built from the neighbors (Corrected Normal Current). The available classes are listed in \ref fitting_curvature.
+
+  \section maths_curvature_sign Sign conventions
+
+  The two formulas above differ by a sign: for a surface bending away from \f$\mathbf{n}\f$, the second derivatives of
+  the parametrization point against \f$\mathbf{n}\f$ (\f$\mathbf{II}\f$ is negative), while the normal rotates
+  outwards (\f$\nabla\mathbf{n}\f$ is positive). Classical textbooks define the shape operator as
+  \f$-\nabla\mathbf{n}\f$, to match \f$\mathbf{I}^{-1}\mathbf{II}\f$. %Ponca uses both conventions:
+
+  | Estimators                                   | Operator                                             | Sphere of radius \f$r\f$, outward normals |
+  |----------------------------------------------|------------------------------------------------------|-------------------------------------------|
+  | GLS \f$\kappa\f$, APSS, ASO, PCA normal derivatives, CNC | \f$+\nabla\mathbf{n}\f$ (normal derivatives)  | \f$k_{\min} = k_{\max} = +1/r\f$ |
+  | Monge patches                                | \f$\mathbf{I}^{-1}\mathbf{II}\f$, with the normal of the patch | \f$k_{\min} = k_{\max} = -1/r\f$ |
+
+  In addition, the orientation of the normal comes from the input normals for oriented methods (GLS, APSS, ASO, CNC),
+  but is arbitrary for the methods relying on the PCA (Monge patches, PCA normals): reversing the normal changes the
+  signs of the curvatures and swaps \f$k_{\min}\f$ and \f$k_{\max}\f$.
+
+  \section maths_curvature_monge Monge patches
+
+  A Monge patch represents the surface as a height field over its tangent plane,
+  \f$\mathbf{x}(u, v) = u\,\mathbf{t}_1 + v\,\mathbf{t}_2 + h(u, v)\,\mathbf{n}_0\f$, where
+  \f$(\mathbf{n}_0, \mathbf{t}_1, \mathbf{t}_2)\f$ is the PCA frame of \ref maths_cov_plane, with the origin at the
+  evaluation position. Ponca::MongePatchQuadraticFit fits, in a second pass over the neighbors, the quadratic height
+  field
+  \f[
+    h(u, v) = h_{uu} u^2 + h_{vv} v^2 + h_{uv} u v + h_u u + h_v v + h_c ,
+  \f]
+  by weighted linear least squares: denoting \f$(h_i, u_i, v_i)\f$ the coordinates of the \f$i\f$-th neighbor in the
+  PCA frame (`worldToTangentPlane`), it minimizes \f$\sum_i w_i \left(h(u_i, v_i) - h_i\right)^2\f$ (normal equations
+  solved with an SVD). Ponca::MongePatchRestrictedQuadraticFit drops the linear terms \f$h_u, h_v\f$, assuming that the
+  PCA plane is tangent to the surface. This is the degree 2 case of the osculating jets of Cazals and Pouget
+  \cite Cazals:2005:Jets.
+
+  The curvatures are computed at \f$(u, v) = (0, 0)\f$ from the fundamental forms
+  (Ponca::FundamentalFormWeingartenEstimator):
+  \f[
+    \mathbf{I} = \begin{pmatrix} 1 + h_u^2 & h_u h_v \\ h_u h_v & 1 + h_v^2 \end{pmatrix}, \qquad
+    \mathbf{II} = \frac{1}{\sqrt{1 + h_u^2 + h_v^2}} \begin{pmatrix} 2h_{uu} & h_{uv} \\ h_{uv} & 2h_{vv} \end{pmatrix}.
+  \f]
+  Note that the methods `h_uu()`, `h_vv()`, `h_uv()` of the height fields return the coefficients of the polynomial,
+  while `d2h_duu()`, `d2h_dvv()`, `d2h_duv()` return its second derivatives \f$2h_{uu}\f$, \f$2h_{vv}\f$, \f$h_{uv}\f$.
+  For the restricted patch, \f$\mathbf{I}\f$ is the identity and \f$\mathbf{W}\f$ is the Hessian of the height
+  field.
+
+  \snippet ponca_numpy.py monge
+
+  \image html maths/maths_monge_patch.png "Figure 1. Quadratic Monge patch fitted to 500 noisy samples of the saddle z = (1.2 x^2 - 0.6 y^2) / 2, with its normal and principal directions at the evaluation point (the normal is oriented upwards for the drawing)."
+
+  \section maths_curvature_normal Normal derivatives: APSS, ASO and PCA normals
+
+  When a fitting procedure provides the derivatives of its normal with respect to the evaluation position
+  (\ref maths_derivatives_page), the shape operator is obtained by restricting \f$\nabla_{\mathbf{p}}\mathbf{n}\f$ to
+  the tangent plane (Ponca::NormalDerivativeWeingartenEstimator): an orthonormal basis \f$\mathbf{B}\f$ of the plane
+  orthogonal to the fitted normal is built, and \f$\mathbf{W} = \mathbf{B}^T\nabla_{\mathbf{p}}\mathbf{n}\,\mathbf{B}\f$.
+  If \f$\mathbf{n}\f$ were the normalized gradient of a fixed scalar field, \f$\mathbf{W}\f$ would be symmetric. A fitted
+  normal field is only an approximation of such a field: \f$\mathbf{W}\f$ is replaced by its symmetric part
+  \f$(\mathbf{W} + \mathbf{W}^T)/2\f$, which defines the same normal curvatures \f$\mathbf{e}^T\mathbf{W}\mathbf{e}\f$.
+  The principal curvatures and directions are then its eigenvalues and eigenvectors
+  (Ponca::WeingartenCurvatureEstimatorDer).
+
+  The quality of the estimate depends on the normal field being differentiated:
+  - **PCA normals** (Ponca::CovariancePlaneDer, as in Point Set Surfaces \cite Alexa:2001:Pss): derivative of the
+    smallest eigenvector of the covariance (\ref maths_der_covariance);
+  - **APSS** (Ponca::OrientedSphereDer \cite Guennebaud:2007:APSS): derivative of the normal of the fitted sphere at the
+    evaluation position, \f$\mathbf{g} = \mathbf{u}_l\f$, including the term \f$2u_q\mathbf{I}\f$ of the moving
+    evaluation position (\ref maths_der_principle). On a sphere, \f$\nabla_{\mathbf{p}}\mathbf{n} = 2u_q
+    (\mathbf{I} - \mathbf{n}\mathbf{n}^T)\f$ for a normalized field, and the principal curvatures are both \f$2u_q\f$;
+  - **ASO**, the Algebraic Shape Operator \cite Lejemble:2021:stable (Ponca::MlsSphereFitDer): derivative of the normal
+    of the MLS surface itself, \f$\nabla f / \|\nabla f\|\f$ (\ref maths_mls_normals), which accounts for the variation of
+    the fitted sphere with the evaluation position, and requires second order derivatives of the fit. The resulting
+    estimates are more stable with respect to noise and sampling \cite Lejemble:2021:stable.
+
+  \section maths_curvature_cnc Corrected Normal Current
+
+  The Corrected Normal Current (CNC) estimators \cite pointCloudCNC-sgp23 compute curvatures as ratios of curvature
+  measures integrated over a set of triangles built from the neighbors. On a triangle \f$(\mathbf{a}, \mathbf{b},
+  \mathbf{c})\f$ whose vertices carry the (corrected) unit normals \f$\mathbf{u}_a, \mathbf{u}_b, \mathbf{u}_c\f$,
+  linearly interpolated over the triangle, with mean \f$\bar{\mathbf{u}} = (\mathbf{u}_a + \mathbf{u}_b +
+  \mathbf{u}_c)/3\f$, the measures have the closed forms
+  \f{align*}{
+    \mu_0 &= \frac{1}{2}\left\langle \bar{\mathbf{u}},\ (\mathbf{b} - \mathbf{a}) \times (\mathbf{c} - \mathbf{a}) \right\rangle
+      & &\text{(corrected area)}, \\
+    \mu_1 &= \frac{1}{4}\left( \left\langle \bar{\mathbf{u}} \times (\mathbf{u}_c - \mathbf{u}_b), \mathbf{a} \right\rangle
+      + \left\langle \bar{\mathbf{u}} \times (\mathbf{u}_a - \mathbf{u}_c), \mathbf{b} \right\rangle
+      + \left\langle \bar{\mathbf{u}} \times (\mathbf{u}_b - \mathbf{u}_a), \mathbf{c} \right\rangle \right)
+      & &\text{(mean curvature measure)}, \\
+    \mu_2 &= \frac{1}{2}\left\langle \mathbf{u}_a,\ \mathbf{u}_b \times \mathbf{u}_c \right\rangle
+      & &\text{(Gaussian curvature measure)}, \\
+    \left(\mu_{XY}\right)_{ij} &= \frac{1}{2}\left\langle \bar{\mathbf{u}},\
+      \left\langle \mathbf{e}_j, \mathbf{u}_c - \mathbf{u}_a \right\rangle \mathbf{e}_i \times (\mathbf{b} - \mathbf{a})
+      - \left\langle \mathbf{e}_j, \mathbf{u}_b - \mathbf{u}_a \right\rangle \mathbf{e}_i \times (\mathbf{c} - \mathbf{a})
+      \right\rangle
+      & &\text{(anisotropic measure)},
+  \f}
+  where \f$(\mathbf{e}_i)\f$ is the canonical basis. Ponca::CNC sums these measures over the triangles (reversing the
+  triangles of negative corrected area), and estimates
+  \f[
+    H = \frac{\sum \mu_1}{\sum \mu_0}, \qquad K = \frac{\sum \mu_2}{\sum \mu_0}, \qquad
+    \mathbf{T} = \frac{\operatorname{sym}\left(\sum \mu_{XY}\right)}{\sum \mu_0} ,
+  \f]
+  the factor \f$1/2\f$ of the mean curvature being included in \f$\mu_1\f$. The principal curvatures and directions are
+  given by the eigen decomposition of \f$\mathbf{T}\f$, after adding a large multiple of
+  \f$\mathbf{n}\mathbf{n}^T\f$ (\f$\mathbf{n}\f$ being the normal at the evaluation point) to discard the normal
+  direction: they are the opposites of the two remaining eigenvalues.
+
+  The triangles are formed from the neighbors in the ball of radius \f$t\f$ (Ponca::TriangleGenerationMethod): random
+  triplets (`UniformGeneration`, `IndependentGeneration`, at most 100 triangles), or two triangles whose vertices are
+  the neighbors closest to six directions of the tangent plane at the average distance (`HexagramGeneration`), or the
+  averages of the neighbors in six angular sectors (`AvgHexagramGeneration`).
+
+  \section maths_curvature_scale Bias and variance
+
+  All the estimators summarize the geometry of a neighborhood, and their accuracy results from a trade-off between
+  noise and bias controlled by the scale. Figure 2 compares three mean curvature estimators on a noisy unit sphere:
+  - at small scales, few neighbors are averaged and the noise dominates. The distance to the PCA plane is the most
+    affected: \f$\delta \approx H t^2 / 4\f$ (\ref maths_cov_asymptotics) is of the order of the noise of the positions;
+  - at large scales, the estimators are biased when the primitive cannot represent the surface: a quadratic height
+    field only approximates a sphere (\f$h(\rho) = \rho^2 / (2R) + \rho^4 / (8R^3) + \dots\f$), while a sphere fit is
+    exact on it. On generic surfaces, every estimator is biased at large scales.
+
+  \image html maths/maths_curvature_scale.png "Figure 2. Mean curvature estimated on a unit sphere sampled with 150000 noisy points (positions perturbed by 0.004, normals by 0.03), as a function of the scale: mean and standard deviation over 60 random evaluation points. The sign of the Monge patch estimate is flipped to follow the convention of the oriented estimators."
+ */
+} // namespace Ponca

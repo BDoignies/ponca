@@ -1,0 +1,185 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page maths_spheres_page Algebraic spheres and Growing Least Squares
+
+  \tableofcontents
+
+  \section maths_spheres_def Algebraic spheres
+
+  An algebraic hypersphere (Ponca::AlgebraicSphere) is the zero set of the scalar field
+  \f[
+    s_{\mathbf{u}}(\mathbf{x}) = u_c + \mathbf{u}_l^T\mathbf{x} + u_q\,\mathbf{x}^T\mathbf{x}
+                            = \tilde{\mathbf{x}}^T\mathbf{u},
+    \qquad \tilde{\mathbf{x}} = \left(1, \mathbf{x}^T, \mathbf{x}^T\mathbf{x}\right)^T,
+    \qquad \mathbf{u} = \left(u_c, \mathbf{u}_l^T, u_q\right)^T \in \mathbb{R}^{d+2},
+  \f]
+  expressed in the local frame of the evaluation position \cite Guennebaud:2007:APSS. The field is linear in its
+  parameters, which makes it easy to fit, while it describes both spheres and planes:
+  - when \f$u_q \neq 0\f$, \f$s_{\mathbf{u}}(\mathbf{x}) = u_q\left(\|\mathbf{x} - \mathbf{c}\|^2 - r^2\right)\f$, with
+    \f[
+      \mathbf{c} = -\frac{\mathbf{u}_l}{2 u_q}, \qquad
+      r^2 = \|\mathbf{c}\|^2 - \frac{u_c}{u_q} = \frac{\|\mathbf{u}_l\|^2 - 4 u_c u_q}{4 u_q^2},
+    \f]
+    which is a sphere when \f$\|\mathbf{u}_l\|^2 - 4 u_c u_q > 0\f$ (`center()`, `radius()`);
+  - when \f$u_q = 0\f$, the zero set is the hyperplane \f$u_c + \mathbf{u}_l^T\mathbf{x} = 0\f$ (`isPlane()`). Spheres
+    tend continuously to planes when \f$u_q \to 0\f$, so a sphere fit degrades gracefully on flat regions.
+
+  The gradient of the field is \f$\nabla s_{\mathbf{u}}(\mathbf{x}) = \mathbf{u}_l + 2 u_q \mathbf{x}\f$; at the
+  evaluation position (the origin of the local frame), the field and its gradient are \f$u_c\f$ and
+  \f$\mathbf{u}_l\f$ (`potential()`, `primitiveGradient()`).
+
+  \subsection maths_spheres_pratt Pratt normalization
+
+  The parameters are defined up to a non-zero factor. On the sphere, \f$\nabla s_{\mathbf{u}}(\mathbf{x}) =
+  2u_q(\mathbf{x} - \mathbf{c})\f$, whose norm is
+  \f[
+    \|\mathbf{u}\|_P = 2|u_q|\, r = \sqrt{\|\mathbf{u}_l\|^2 - 4 u_c u_q},
+  \f]
+  the *Pratt norm* of \f$\mathbf{u}\f$ (`prattNorm()`). It is invariant to the translations of the local frame. Dividing
+  \f$\mathbf{u}\f$ by its Pratt norm (`applyPrattNorm()`) makes the gradient unitary on the surface, and the field
+  becomes an approximation of the signed distance: denoting by \f$\delta(\mathbf{x}) = \|\mathbf{x} - \mathbf{c}\| - r\f$
+  the signed distance to the sphere,
+  \f[
+    s_{\mathbf{u}}(\mathbf{x}) = \pm\,\delta(\mathbf{x})\left(1 + \frac{\delta(\mathbf{x})}{2r}\right).
+  \f]
+  For a normalized field, \f$|u_q| = 1/(2r)\f$, so that \f$\kappa = 2u_q\f$ is the (signed) curvature of the sphere,
+  positive when the gradient points outward (`kMean()`, Ponca::GLSParam::kappa()).
+
+  \subsection maths_spheres_projection Projection and change of frame
+
+  The orthogonal projection of a point \f$\mathbf{q}\f$ onto the sphere lies on the line through \f$\mathbf{q}\f$ and the
+  center, i.e. along the gradient \f$\mathbf{g} = \nabla s_{\mathbf{u}}(\mathbf{q})\f$. Since the field is quadratic,
+  \f$s_{\mathbf{u}}(\mathbf{q} + \mu\mathbf{g}) = s_{\mathbf{u}}(\mathbf{q}) + \mu\|\mathbf{g}\|^2 + u_q\mu^2\|\mathbf{g}\|^2\f$,
+  and `project()` returns \f$\mathbf{q} + \mu\mathbf{g}\f$ for the root
+  \f[
+    \mu = -\frac{\|\mathbf{g}\| - \sqrt{\|\mathbf{g}\|^2 - 4 u_q\, s_{\mathbf{u}}(\mathbf{q})}}{2 u_q \|\mathbf{g}\|},
+  \f]
+  which tends to the Newton step \f$-s_{\mathbf{u}}(\mathbf{q}) / \|\mathbf{g}\|^2\f$ when \f$u_q \to 0\f$.
+
+  \snippet ponca_numpy.py project
+
+  Translating the local frame by \f$\mathbf{\Delta}\f$ (old center minus new center, `changeBasis()`) changes the
+  parameters as
+  \f$u_c' = u_c - \mathbf{u}_l^T\mathbf{\Delta} + u_q\|\mathbf{\Delta}\|^2\f$,
+  \f$\mathbf{u}_l' = \mathbf{u}_l - 2u_q\mathbf{\Delta}\f$, \f$u_q' = u_q\f$.
+
+  \section maths_spheres_fits Fitting algebraic spheres
+
+  %Ponca provides three procedures, which differ by the information they use and by the quantity they minimize.
+  Figure 1 compares them on the same neighborhood.
+
+  \image html maths/maths_sphere_fits.png "Figure 1. Pratt-normalized scalar fields fitted on a noisy neighborhood (dashed circle, smooth kernel) of an ellipse (dotted), at the orange point. The plane fit cannot follow the curvature; the three sphere fits do. The fields of the unsigned methods have an arbitrary sign: here, the unoriented fit is negative outside, as the normals it was given are randomly flipped."
+
+  \subsection maths_spheres_sphere_fit From positions only: SphereFit
+
+  Ponca::SphereFit minimizes the weighted algebraic distances \cite Guennebaud:2007:APSS
+  \f[
+    \min_{\mathbf{u}} \sum_i w_i\, s_{\mathbf{u}}(\mathbf{x}_i)^2 = \mathbf{u}^T\mathbf{A}\,\mathbf{u},
+    \qquad \mathbf{A} = \sum_i w_i\, \tilde{\mathbf{x}}_i\tilde{\mathbf{x}}_i^T,
+  \f]
+  under the Pratt constraint \f$\|\mathbf{u}\|_P^2 = \mathbf{u}^T\mathbf{C}\,\mathbf{u} = 1\f$, which excludes the
+  trivial solution and makes the energy a sum of approximate squared distances. \f$\mathbf{C}\f$ is the identity on
+  the \f$\mathbf{u}_l\f$ block, with \f$-2\f$ coupling \f$u_c\f$ and \f$u_q\f$. The Lagrange conditions give the
+  generalized eigenvalue problem \f$\mathbf{A}\mathbf{u} = \lambda\mathbf{C}\mathbf{u}\f$, for which
+  \f$\mathbf{u}^T\mathbf{A}\mathbf{u} = \lambda\f$: the solution is the eigenvector of the smallest *positive*
+  eigenvalue (\f$\mathbf{C}\f$ is indefinite, so eigenvalues of both signs exist). It is computed as an eigenvector of
+  \f$\mathbf{C}^{-1}\mathbf{A}\f$. Since \f$\mathbf{u}\f$ and \f$-\mathbf{u}\f$ are both solutions, the field is not
+  oriented.
+
+  \snippet ponca_numpy.py sphere_fit
+
+  \subsection maths_spheres_oriented From oriented points: OrientedSphereFit
+
+  With oriented normals, Ponca::OrientedSphereFit (Algebraic Point Set Surfaces, APSS \cite Guennebaud:2007:APSS)
+  first fits the gradient of the field to the normals,
+  \f[
+    \min_{\mathbf{u}_l, u_q} \sum_i w_i \left\|\nabla s_{\mathbf{u}}(\mathbf{x}_i) - \mathbf{n}_i\right\|^2
+    = \sum_i w_i \left\|\mathbf{u}_l + 2u_q\mathbf{x}_i - \mathbf{n}_i\right\|^2 ,
+  \f]
+  a linear least squares problem. Setting the derivatives to zero gives \f$\mathbf{u}_l = \langle\mathbf{n}\rangle -
+  2u_q\langle\mathbf{x}\rangle\f$ and, by substitution,
+  \f[
+    u_q = \frac{1}{2}\,
+      \frac{\langle\mathbf{x}^T\mathbf{n}\rangle - \langle\mathbf{x}\rangle^T\langle\mathbf{n}\rangle}
+           {\langle\mathbf{x}^T\mathbf{x}\rangle - \langle\mathbf{x}\rangle^T\langle\mathbf{x}\rangle} .
+  \f]
+  The constant term then minimizes \f$\sum_i w_i s_{\mathbf{u}}(\mathbf{x}_i)^2\f$, i.e.
+  \f$u_c = -\left(\mathbf{u}_l^T\langle\mathbf{x}\rangle + u_q\langle\mathbf{x}^T\mathbf{x}\rangle\right)\f$:
+  the mean of the field over the neighbors is zero. The solution is in closed form, and its cost is that of a few
+  weighted sums.
+
+  \snippet ponca_numpy.py oriented_sphere_fit
+
+  The expression of \f$u_q\f$ has a simple interpretation: it is half the ratio between the covariance of the positions
+  and the normals, and the variance of the positions, i.e. half the rate at which the normals rotate when moving along
+  the surface: twice \f$u_q\f$ is a curvature. The fit is degenerate when the positions do not spread
+  (\f$\langle\mathbf{x}^T\mathbf{x}\rangle = \|\langle\mathbf{x}\rangle\|^2\f$). As the normals are unit vectors, the
+  fitted gradient has a norm close to 1 on the data, so the result is close to Pratt-normalized; Ponca::GLSParam
+  measures the deviation with its *fitness* \f$1 - \|\mathbf{u}\|_P^2\f$.
+
+  \subsection maths_spheres_unoriented From unoriented points: UnorientedSphereFit
+
+  When the orientation of the normals is unknown (e.g. normals estimated by PCA), Ponca::UnorientedSphereFit
+  \cite Chen:2013:NOMG maximizes the alignment between the gradient of the field and the normal directions,
+  \f[
+    \max_{\mathbf{u}_l, u_q} \sum_i w_i \left(\mathbf{n}_i^T\nabla s_{\mathbf{u}}(\mathbf{x}_i)\right)^2
+    \quad\text{subject to}\quad \left\langle \|\nabla s_{\mathbf{u}}(\mathbf{x})\|^2 \right\rangle = 1,
+  \f]
+  which is invariant to the flip \f$\mathbf{n}_i \to -\mathbf{n}_i\f$. With \f$\mathbf{v} = (\mathbf{u}_l, 2u_q)\f$,
+  \f$\mathbf{n}_i^T\nabla s_{\mathbf{u}}(\mathbf{x}_i) = (\mathbf{n}_i^T, \mathbf{n}_i^T\mathbf{x}_i)\,\mathbf{v}\f$
+  and \f$\|\nabla s_{\mathbf{u}}(\mathbf{x})\|^2 = \mathbf{v}^T \begin{pmatrix} \mathbf{I} & \mathbf{x} \\
+  \mathbf{x}^T & \mathbf{x}^T\mathbf{x}\end{pmatrix} \mathbf{v}\f$, so that the problem is the generalized
+  eigenvalue problem \f$\mathbf{A}\mathbf{v} = \lambda\mathbf{Q}\mathbf{v}\f$, with
+  \f[
+    \mathbf{A} = \sum_i w_i \begin{pmatrix}\mathbf{n}_i \\ \mathbf{n}_i^T\mathbf{x}_i\end{pmatrix}
+                            \begin{pmatrix}\mathbf{n}_i^T & \mathbf{n}_i^T\mathbf{x}_i\end{pmatrix},
+    \qquad
+    \mathbf{Q} = \begin{pmatrix}\mathbf{I} & \langle\mathbf{x}\rangle \\ \langle\mathbf{x}\rangle^T &
+                 \langle\mathbf{x}^T\mathbf{x}\rangle\end{pmatrix},
+  \f]
+  whose solution is the eigenvector of the largest eigenvalue. The constant term is computed as for the oriented fit.
+
+  \snippet ponca_numpy.py unoriented_sphere_fit
+
+  \section maths_gls Growing Least Squares
+
+  The Growing Least Squares (GLS) \cite Mellado:2012:GLS describe the neighborhood of \f$\mathbf{p}\f$ at the scale
+  \f$t\f$ by the Pratt-normalized sphere \f$\bar{\mathbf{u}} = \mathbf{u} / \|\mathbf{u}\|_P\f$, through three
+  parameters (Ponca::GLSParam):
+  - the offset \f$\tau = \bar{u}_c = s_{\bar{\mathbf{u}}}(\mathbf{0})\f$, an approximation of the signed distance
+    between \f$\mathbf{p}\f$ and the fitted surface,
+  - the normal direction \f$\eta = \mathbf{u}_l\f$, the gradient of the field at \f$\mathbf{p}\f$,
+  - the curvature \f$\kappa = 2\bar{u}_q\f$.
+
+  \snippet ponca_numpy.py gls
+
+  Following the scale invariance of \ref maths_weights_def, scaling the data and the scale by \f$\lambda\f$ multiplies
+  \f$\tau\f$ by \f$\lambda\f$ and \f$\kappa\f$ by \f$1/\lambda\f$: the scale-invariant parameters are
+  \f$(\tau/t, \eta, t\kappa)\f$ (`tau_normalized()`, `eta_normalized()`, `kappa_normalized()`). They allow to compare
+  neighborhoods at different scales, e.g. with `compareTo()`, which returns the squared distance between the
+  normalized \f$\tau\f$, \f$\kappa\f$ and fitness of two fits.
+
+  The evolution of the descriptor with the scale reveals the structure of the shape: on a feature of size
+  \f$\ell\f$, the parameters are nearly constant while \f$t \ll \ell\f$ or \f$t \gg \ell\f$, and change quickly when
+  \f$t \approx \ell\f$. The *geometric variation* (Ponca::GLSDer, computed from the scale derivatives of
+  \ref maths_derivatives_page) measures this change,
+  \f[
+    \nu(\mathbf{p}, t) = w_\tau \left(\frac{\partial\tau}{\partial t}\right)^2
+                       + w_\eta \left\| t\,\frac{\partial\eta}{\partial t}\right\|^2
+                       + w_\kappa \left(t^2\,\frac{\partial\kappa}{\partial t}\right)^2 ,
+  \f]
+  where each term is invariant to a joint scaling of the data and of \f$t\f$. Scales where \f$\nu\f$ is small are
+  *stable*: the neighborhood is well described by a sphere there. Figure 2 shows these quantities at the top of a
+  small undulation of a large circle: \f$\kappa\f$ goes from the curvature of the undulation to that of the circle,
+  and \f$\nu\f$ peaks when the scale reaches the size of the undulation.
+
+  \image html maths/maths_gls_scale_space.png "Figure 2. GLS parameters at the top of an undulation of a circle of radius 3 (24 undulations of amplitude 0.04), as functions of the scale. The vertical line marks the wavelength of the undulations."
+ */
+} // namespace Ponca

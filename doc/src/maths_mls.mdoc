@@ -1,0 +1,72 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page maths_mls_page Moving Least Squares surfaces
+
+  \tableofcontents
+
+  \section maths_mls_def Definition
+
+  A single fit approximates the data around one evaluation position. Moving Least Squares (MLS) surfaces
+  \cite Levin:1998 \cite Alexa:2001:Pss \cite Cheng:2008 are obtained by letting the evaluation position move: at every
+  position \f$\mathbf{q}\f$ of space, a primitive \f$\mathbf{u}(\mathbf{q})\f$ is fitted with weights centered at
+  \f$\mathbf{q}\f$. For implicit primitives, this defines the scalar function
+  \f[
+    f(\mathbf{q}) = s_{\mathbf{u}(\mathbf{q})}(\mathbf{q}),
+  \f]
+  the value of the field of the local fit at its own evaluation position (for a Pratt-normalized sphere fit, this is
+  the GLS offset \f$\tau\f$ at \f$\mathbf{q}\f$, see \ref maths_gls). The MLS surface is the zero set of \f$f\f$
+  \cite Guennebaud:2007:APSS. With oriented sphere fits, the result is the *Algebraic Point Set Surface* (APSS),
+  which is well defined even in sparsely sampled and highly curved regions, where planar fits fail. The function is
+  only defined where the fit is (here, where enough neighbors have a positive weight), and its regularity follows that
+  of the weight kernel (\ref maths_weights_kernels).
+
+  \image html maths/maths_mls.png "Figure 1. Implicit function f of the MLS surface defined by oriented sphere fits (smooth kernel) on a sparse noisy point cloud. Its zero isoline is the MLS surface; orange polylines show the successive positions of the MLS projection of a few points, which converge in one or two iterations."
+
+  \section maths_mls_projection Projection
+
+  The MLS surface is not computed explicitly: points are projected onto it \cite Alexa:2004:projection. Starting from
+  \f$\mathbf{q}_0 = \mathbf{q}\f$, Ponca::MLSEvaluationScheme iterates
+  \f[
+    \mathbf{q}_{k+1} = \Pi_{\mathbf{u}(\mathbf{q}_k)}(\mathbf{q}_k),
+  \f]
+  where \f$\Pi_{\mathbf{u}}\f$ is the projection operator of the primitive fitted at \f$\mathbf{q}_k\f$. A fixed point
+  satisfies \f$\Pi_{\mathbf{u}(\mathbf{q}^*)}(\mathbf{q}^*) = \mathbf{q}^*\f$, so \f$\mathbf{q}^*\f$ lies on its own
+  local primitive: \f$s_{\mathbf{u}(\mathbf{q}^*)}(\mathbf{q}^*) = f(\mathbf{q}^*) = 0\f$, i.e. \f$\mathbf{q}^*\f$
+  belongs to the MLS surface. The iterations stop when \f$\|\mathbf{q}_{k+1} - \mathbf{q}_k\| \leq \varepsilon
+  \min(\|\mathbf{q}_k\|, \|\mathbf{q}_{k+1}\|)\f$, after a maximal number of iterations, or when a fit is not stable.
+  The result is not exactly the orthogonal projection onto the MLS surface, but a point of the surface close to it.
+
+  \snippet ponca_numpy.py mls
+
+  The projection operator itself is a parameter:
+  - Ponca::DirectProjectionOperator uses the closed-form projection of the primitive (for spheres, see
+    \ref maths_spheres_projection);
+  - Ponca::GradientDescentProjectionOperator only uses the scalar field: it moves the point along the initial gradient
+    direction \f$\mathbf{e} = \nabla s / \|\nabla s\|\f$ with the steps
+    \f$\mathbf{q} \leftarrow \mathbf{q} - s(\mathbf{q}) \min\left(1, \|\nabla s(\mathbf{q})\|^{-1}\right)\mathbf{e}\f$,
+    which converge to the zero set along \f$\mathbf{e}\f$ for Pratt-normalized fields close to a distance.
+
+  Algebraic sphere fits make the projection converge in very few iterations (Figure 1): as the local sphere follows the
+  curvature of the data, the first projection is already close to the surface.
+
+  \section maths_mls_normals Normals of the MLS surface
+
+  The normal of the MLS surface at \f$\mathbf{q}\f$ is the direction of \f$\nabla f(\mathbf{q})\f$. By the chain rule,
+  \f[
+    \nabla f(\mathbf{q}) = \nabla s_{\mathbf{u}}(\mathbf{q})\Big|_{\mathbf{u} = \mathbf{u}(\mathbf{q})}
+      + \left(\frac{\partial \mathbf{u}}{\partial \mathbf{q}}\right)^T \frac{\partial s_{\mathbf{u}}(\mathbf{q})}{\partial \mathbf{u}} .
+  \f]
+  The first term is the gradient of the local fit; the second accounts for the variation of the fit with the
+  evaluation position, and does not vanish in general: the gradient of the local fit is only an approximation of the
+  normal of the MLS surface. The derivatives \f$\partial\mathbf{u} / \partial\mathbf{q}\f$ are computed by the space derivatives of
+  \ref maths_derivatives_page, and the curvature of the MLS surface by its second derivatives
+  (\ref maths_curvature_normal).
+ */
+} // namespace Ponca

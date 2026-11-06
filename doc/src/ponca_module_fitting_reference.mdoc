@@ -159,7 +159,7 @@ namespace Ponca
  | Ponca::GaussianWeightKernel<Scalar>            | \f$\exp\left(-\frac{x^2}{2}\right)\f$                  | no      | yes  | yes   | standard deviation \f$t\f$; \f$\phi(1) \approx 0.6\f$ |
 
  *Compact* kernels vanish for \f$x \geq 1\f$: Ponca::DistWeightFilter then gives a null weight to the points farther
- than \f$t\f$. The columns `df` and `ddf` tell whether the first and second derivatives are valid (flags `isDValid`
+ than \f$t\f$ (the kernels are plotted in \ref maths_weights_kernels). The columns `df` and `ddf` tell whether the first and second derivatives are valid (flags `isDValid`
  and `isDDValid`), which is required to compute first and second order derivatives of the fits.
 
  \section fittingreference_status Fit status
