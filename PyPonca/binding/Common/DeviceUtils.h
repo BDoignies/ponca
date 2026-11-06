@@ -10,11 +10,17 @@
 #include <Ponca/Ponca>
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <memory>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace nb = nanobind;
+
+// Devices -------------------------------------------------------------------------------------------------------------
 
 #ifdef __CUDACC__
 /**
@@ -53,6 +59,203 @@ private:
 #endif
 
 /**
+ * \brief Sets the current device for the lifetime of the object, whatever the device
+ *
+ * Does nothing for the CPU, and when compiled without CUDA support. Allocations (see AllocateBytes)
+ * already select their device: this guard is only needed to launch kernels.
+ *
+ * \param device Device type, which must match nanobind.
+ * \param deviceId Index of the device
+ */
+struct DeviceGuard
+{
+    DeviceGuard(int device, int deviceId)
+    {
+#ifdef __CUDACC__
+        if (device == nb::device::cuda::value)
+            m_guard.emplace(deviceId);
+#else
+        (void)device;
+        (void)deviceId;
+#endif
+    }
+
+    DeviceGuard(const DeviceGuard&)            = delete;
+    DeviceGuard& operator=(const DeviceGuard&) = delete;
+
+#ifdef __CUDACC__
+private:
+    std::optional<CudaDeviceGuard> m_guard;
+#endif
+};
+
+/**
+ * \brief Throws if the given device is not the CPU, for operations that are only available on the host
+ *
+ * \param device Device type, which must match nanobind.
+ * \param what Description of the operation, used as error message
+ */
+inline void RequireHost(int device, const char* what)
+{
+    if (device != nb::device::cpu::value)
+        throw std::runtime_error(std::string(what) + " (got device type " + std::to_string(device) + ")");
+}
+
+// Raw memory ----------------------------------------------------------------------------------------------------------
+
+/**
+ * \brief Allocates memory on a device
+ *
+ * At least one byte is always allocated: a nullptr is seen as "no data" (e.g. by DeviceArrayView).
+ * The memory must be released with FreeBytes.
+ *
+ * \param bytes Size of the allocation
+ * \param device Device type, which must match nanobind.
+ * \param deviceId Index of the device
+ */
+inline void* AllocateBytes(size_t bytes, int device, int deviceId = 0)
+{
+    bytes = std::max<size_t>(bytes, 1);
+    switch (device)
+    {
+    case nb::device::cpu::value:
+        return ::operator new(bytes);
+#ifdef __CUDACC__
+    case nb::device::cuda::value: {
+        DeviceGuard guard(device, deviceId);
+        void* data = nullptr;
+        CheckCuda(cudaMalloc(&data, bytes), "Device allocation failed");
+        return data;
+    }
+#endif
+    default:
+        throw std::runtime_error("Unsupported device for allocation (" + std::to_string(device) + ")");
+    }
+}
+
+/**
+ * \brief Releases memory allocated by AllocateBytes
+ *
+ * \param data The memory, which may be nullptr
+ * \param device Device type the memory was allocated on
+ */
+inline void FreeBytes(void* data, int device) noexcept
+{
+    if (data == nullptr)
+        return;
+
+    switch (device)
+    {
+    case nb::device::cpu::value:
+        ::operator delete(data);
+        break;
+#ifdef __CUDACC__
+    case nb::device::cuda::value:
+        cudaFree(data);
+        break;
+#endif
+    default:
+        break; // AllocateBytes does not support other devices
+    }
+}
+
+/**
+ * \brief Creates a capsule releasing memory allocated by AllocateBytes, to own nanobind arrays
+ *
+ * \param data The memory
+ * \param device Device type the memory was allocated on
+ */
+inline nb::capsule MakeOwner(void* data, int device)
+{
+    // Capsule deleters can not capture the device
+    constexpr auto freeCpu = [](void* p) noexcept { FreeBytes(p, nb::device::cpu::value); };
+#ifdef __CUDACC__
+    constexpr auto freeCuda = [](void* p) noexcept { FreeBytes(p, nb::device::cuda::value); };
+#endif
+
+    switch (device)
+    {
+    case nb::device::cpu::value:
+        return nb::capsule(data, freeCpu);
+#ifdef __CUDACC__
+    case nb::device::cuda::value:
+        return nb::capsule(data, freeCuda);
+#endif
+    default:
+        FreeBytes(data, device);
+        throw std::runtime_error("Unsupported device for allocation (" + std::to_string(device) + ")");
+    }
+}
+
+/**
+ * \brief Copies memory between two devices (in any direction)
+ *
+ * \param dst Destination
+ * \param dstDevice Device type of the destination
+ * \param src Source
+ * \param srcDevice Device type of the source
+ * \param bytes Number of bytes to copy
+ */
+inline void CopyBytes(void* dst, int dstDevice, const void* src, int srcDevice, size_t bytes)
+{
+    if (bytes == 0)
+        return;
+
+    constexpr int cpu = nb::device::cpu::value;
+    if (srcDevice == cpu && dstDevice == cpu)
+    {
+        std::memcpy(dst, src, bytes);
+        return;
+    }
+
+#ifdef __CUDACC__
+    constexpr int cuda = nb::device::cuda::value;
+    if ((srcDevice == cpu || srcDevice == cuda) && (dstDevice == cpu || dstDevice == cuda))
+    {
+        const cudaMemcpyKind kind = srcDevice == cpu   ? cudaMemcpyHostToDevice
+                                    : dstDevice == cpu ? cudaMemcpyDeviceToHost
+                                                       : cudaMemcpyDeviceToDevice;
+        CheckCuda(cudaMemcpy(dst, src, bytes, kind), "Copy between devices failed");
+        return;
+    }
+#endif
+
+    throw std::runtime_error("Unsupported copy from device " + std::to_string(srcDevice) + " to device " +
+                             std::to_string(dstDevice));
+}
+
+// Arrays --------------------------------------------------------------------------------------------------------------
+
+/**
+ * \brief Memory span covered by a (strided) array
+ *
+ * Strides are given in elements, and may be 0 (broadcasted dimensions) or negative.
+ */
+struct ArraySpan
+{
+    template <typename Array>
+    explicit ArraySpan(const Array& array) : shape(array.ndim()), strides(array.ndim())
+    {
+        int64_t last = 0;
+        for (size_t d = 0; d < array.ndim(); ++d)
+        {
+            shape[d]   = array.shape(d);
+            strides[d] = array.stride(d);
+
+            const int64_t extent = (static_cast<int64_t>(shape[d]) - 1) * strides[d];
+            first += std::min<int64_t>(0, extent);
+            last += std::max<int64_t>(0, extent);
+        }
+        count = (array.size() == 0) ? 0 : static_cast<size_t>(last - first + 1);
+    }
+
+    int64_t first = 0;            ///< Offset of the first element of the span from the array data (<= 0)
+    size_t count  = 0;            ///< Number of elements in the span
+    std::vector<size_t> shape;    ///< Shape of the array
+    std::vector<int64_t> strides; ///< Strides of the array, in elements
+};
+
+/**
  * \brief Creates a nanobind array for return purposes
  *
  * This function is not meant to be a replacement of nb::ndarray, just a convienient way
@@ -63,9 +266,8 @@ private:
  * \tparam Scalar The scalar type of the array
  *
  * \param shape Shape of the vector. Also used to describe the number of dimensions
- * \param device Device id which must match nanobind.
- * \param deviceId Index of the device (only meaningful for multi-gpu setups). Allocations
- * are performed on the current device, which must match this index.
+ * \param device Device type, which must match nanobind.
+ * \param deviceId Index of the device (only meaningful for multi-gpu setups).
  */
 template <typename Scalar>
 inline nb::ndarray<Scalar, nb::array_api> CreateDeviceArray(const std::vector<size_t>& shape, int device,
@@ -78,102 +280,103 @@ inline nb::ndarray<Scalar, nb::array_api> CreateDeviceArray(const std::vector<si
     for (unsigned int i = 0; i < shape.size(); ++i)
         elementCount *= shape[i];
 
-    switch (device)
-    {
-    case nb::device::cpu::value: {
-        Scalar* data = new Scalar[elementCount];
-        auto deleter = nb::capsule(data, [](void* p) noexcept { delete[] reinterpret_cast<Scalar*>(p); });
-
-        return nb::ndarray<Scalar, nb::array_api>(data, shape.size(), shape.data(), deleter, nullptr,
-                                                  nb::dtype<Scalar>(), device);
-    }
-#ifdef __CUDACC__
-    case nb::device::cuda::value: {
-        // Unlike new[], cudaMalloc returns a nullptr for empty allocations, which would be
-        // seen as "no output" by DeviceArrayView. We always allocate at least one element.
-        Scalar* data = nullptr;
-        CheckCuda(cudaMalloc(&data, std::max<size_t>(elementCount, 1) * sizeof(Scalar)), "Device allocation failed");
-        auto deleter = nb::capsule(data, [](void* p) noexcept { cudaFree(p); });
-
-        return nb::ndarray<Scalar, nb::array_api>(data, shape.size(), shape.data(), deleter, nullptr,
-                                                  nb::dtype<Scalar>(), device, deviceId);
-    }
-#endif
-    default:
-        throw std::runtime_error("Unsupported device for allocation");
-    }
+    Scalar* data = static_cast<Scalar*>(AllocateBytes(elementCount * sizeof(Scalar), device, deviceId));
+    return nb::ndarray<Scalar, nb::array_api>(data, shape.size(), shape.data(), MakeOwner(data, device), nullptr,
+                                              nb::dtype<Scalar>(), device, deviceId);
 }
 
 /**
- * \brief Creates an array on a device
+ * \brief Copies an array to a device (in any direction), keeping its shape and strides
  *
- * Note: this is a bitwise copy. As nanobind can only hold arithmetic types, the results
- * is within bytes to be reinterpreted as T*.
+ * Only the memory span covered by the array is copied, so broadcasted (0-stride)
+ * dimensions are not expanded. The returned array owns its memory.
  *
- * \param elements The host elements
- * \param device Device id which must match nanobind.
- * \param deviceId Index of the device (see CreateDeviceArray)
- */
-template <typename T>
-inline nb::ndarray<uint8_t, nb::array_api> CopyToDevice(const std::vector<T>& elements, int device, int deviceId = 0)
-{
-    const size_t bytes = elements.size() * sizeof(T);
-    auto array         = CreateDeviceArray<uint8_t>({bytes}, device, deviceId);
-    if (bytes == 0)
-        return array;
-
-    switch (device)
-    {
-    case nb::device::cpu::value:
-        std::memcpy(array.data(), elements.data(), bytes);
-        break;
-#ifdef __CUDACC__
-    case nb::device::cuda::value:
-        CheckCuda(cudaMemcpy(array.data(), elements.data(), bytes, cudaMemcpyHostToDevice), "Copy to device failed");
-        break;
-#endif
-    }
-    return array;
-}
-
-#ifdef __CUDACC__
-/**
- * \brief Copies a device array to the host
- *
- * \param array The device array
+ * \param array The array to copy
+ * \param device Device type, which must match nanobind.
+ * \param deviceId Index of the device
  */
 template <typename Scalar, typename... Args>
-nb::ndarray<Scalar, Args...> CopyToHost(const nb::ndarray<Scalar, Args...>& array)
+nb::ndarray<Scalar, Args...> CopyArray(const nb::ndarray<Scalar, Args...>& array, int device, int deviceId = 0)
 {
-    const auto elementStride = [](int64_t stride) {
-        return static_cast<int64_t>(static_cast<uint64_t>(stride) * sizeof(Scalar)) /
-               static_cast<int64_t>(sizeof(Scalar));
-    };
+    const ArraySpan span(array);
+    const size_t bytes = span.count * sizeof(Scalar);
 
-    int64_t first = 0, last = 0;
-    std::vector<size_t> shape(array.ndim());
-    std::vector<int64_t> strides(array.ndim());
-    for (size_t d = 0; d < array.ndim(); ++d)
+    Scalar* storage   = static_cast<Scalar*>(AllocateBytes(bytes, device, deviceId));
+    nb::capsule owner = MakeOwner(storage, device);
+    CopyBytes(storage, device, array.data() + span.first, array.device_type(), bytes);
+
+    return nb::ndarray<Scalar, Args...>(storage - span.first, span.shape.size(), span.shape.data(), owner,
+                                        span.strides.data(), nb::dtype<Scalar>(), device, deviceId);
+}
+
+// Buffers -------------------------------------------------------------------------------------------------------------
+
+/**
+ * \brief Typed, reference counted buffer of elements stored on a device
+ *
+ * Elements are copied bitwise: T must be valid on the target device once copied (e.g. pointers
+ * it holds must point to memory of that device). Copies of the buffer share the same memory.
+ *
+ * \tparam T Type of the elements
+ */
+template <typename T>
+class DeviceBuffer
+{
+public:
+    DeviceBuffer() = default;
+
+    /**
+     * \brief Copies elements stored on any device
+     *
+     * \param elements The elements to copy
+     * \param size Number of elements
+     * \param srcDevice Device type the elements are stored on
+     * \param device Device type of the buffer, which must match nanobind.
+     * \param deviceId Index of the device
+     */
+    DeviceBuffer(const T* elements, size_t size, int srcDevice, int device, int deviceId = 0)
+        : m_size(size), m_device(device), m_deviceId(deviceId)
     {
-        shape[d]   = array.shape(d);
-        strides[d] = elementStride(array.stride(d));
-
-        const int64_t extent = (static_cast<int64_t>(array.shape(d)) - 1) * strides[d];
-        first += std::min<int64_t>(0, extent);
-        last += std::max<int64_t>(0, extent);
+        const size_t bytes = size * sizeof(T);
+        void* data         = AllocateBytes(bytes, device, deviceId);
+        m_storage          = std::shared_ptr<void>(data, [device](void* p) noexcept { FreeBytes(p, device); });
+        CopyBytes(data, device, elements, srcDevice, bytes);
     }
 
-    const size_t count = (array.size() == 0) ? 0 : static_cast<size_t>(last - first + 1);
-    Scalar* span       = new Scalar[std::max<size_t>(count, 1)];
-    auto deleter       = nb::capsule(span, [](void* p) noexcept { delete[] reinterpret_cast<Scalar*>(p); });
+    /**
+     * \brief Copies elements stored on the host
+     *
+     * \param elements The elements to copy
+     * \param device Device type of the buffer, which must match nanobind.
+     * \param deviceId Index of the device
+     */
+    DeviceBuffer(const std::vector<T>& elements, int device, int deviceId = 0)
+        : DeviceBuffer(elements.data(), elements.size(), nb::device::cpu::value, device, deviceId)
+    {
+    }
 
-    CheckCuda(cudaMemcpy(span, array.data() + first, count * sizeof(Scalar), cudaMemcpyDeviceToHost),
-              "Copy to host failed");
+    /**
+     * \brief Returns a copy of the buffer, stored on another device
+     */
+    DeviceBuffer toDevice(int device, int deviceId = 0) const
+    {
+        return DeviceBuffer(data(), m_size, m_device, device, deviceId);
+    }
 
-    return nb::ndarray<Scalar, Args...>(span - first, shape.size(), shape.data(), deleter, strides.data(),
-                                        nb::dtype<Scalar>(), nb::device::cpu::value);
-}
-#endif
+    T* data() const { return static_cast<T*>(m_storage.get()); }
+
+    size_t size() const { return m_size; }
+
+    int device_type() const { return m_device; }
+
+    int device_id() const { return m_deviceId; }
+
+private:
+    std::shared_ptr<void> m_storage;
+    size_t m_size{0};
+    int m_device{nb::device::cpu::value};
+    int m_deviceId{0};
+};
 
 /**
  * \brief Array view over a nanobind array accessible on device
@@ -196,9 +399,10 @@ struct DeviceArrayView
      */
     DeviceArrayView() : shape(nullptr), stride(nullptr)
     {
-        N      = 0;
-        data   = nullptr;
-        device = -1;
+        N        = 0;
+        data     = nullptr;
+        device   = -1;
+        deviceId = 0;
     }
 
     /**
@@ -209,9 +413,10 @@ struct DeviceArrayView
      */
     DeviceArrayView(nanobind::ndarray<Scalar> array) : shape(nullptr), stride(nullptr)
     {
-        data   = array.data();
-        N      = array.ndim();
-        device = array.device_type();
+        data     = array.data();
+        N        = array.ndim();
+        device   = array.device_type();
+        deviceId = array.device_id();
 
         Copy(nb::device::cpu::value, array.shape_ptr(), array.stride_ptr());
     }
@@ -220,13 +425,13 @@ struct DeviceArrayView
      * \brief Copy constructor
      *
      * A copy of shape and stride is performed, the ownership is not shared.
-     * This may (or may not) support device conversion.
      */
     DeviceArrayView(const DeviceArrayView& other) : shape(nullptr), stride(nullptr)
     {
-        data   = other.data;
-        N      = other.N;
-        device = other.device;
+        data     = other.data;
+        N        = other.N;
+        device   = other.device;
+        deviceId = other.deviceId;
 
         Copy(other.device, other.shape, other.stride);
     }
@@ -238,9 +443,10 @@ struct DeviceArrayView
     {
         if (&other != this)
         {
-            data   = other.data;
-            N      = other.N;
-            device = other.device;
+            data     = other.data;
+            N        = other.N;
+            device   = other.device;
+            deviceId = other.deviceId;
 
             Copy(other.device, other.shape, other.stride);
         }
@@ -378,6 +584,7 @@ struct DeviceArrayView
 
     size_t N;
     int device;
+    int deviceId;
     Scalar* data;
 
     int64_t* shape;
@@ -387,35 +594,16 @@ private:
     /**
      * \brief Free shape and stride according to the device they are on
      */
-    void Free()
+    void Free() noexcept
     {
-        if (shape == nullptr || stride == nullptr)
-            return;
-
-        switch (device)
-        {
-        case nb::device::cpu::value: {
-            delete[] shape;
-            delete[] stride;
-        }
-        break;
-#ifdef __CUDACC__
-        case nb::device::cuda::value: {
-            cudaFree(shape);
-            cudaFree(stride);
-        }
-        break;
-#endif
-        default:
-            throw std::runtime_error("Unsupported device when freeing (" + std::to_string(device) + ")!");
-        }
-
+        FreeBytes(shape, device);
+        FreeBytes(stride, device);
         shape  = nullptr;
         stride = nullptr;
     }
 
     /**
-     * \brief Copy shape and stride to the corresponding device
+     * \brief Copy shape and stride to the device of the view
      *
      * \param srcDevice The device srcshape and srcstride are located on
      * \param srcshape A pointer to the shape data
@@ -432,60 +620,18 @@ private:
         if (srcshape == nullptr && srcstride == nullptr)
             return;
 
-        switch (device)
+        const size_t bytes = N * sizeof(int64_t);
+        try
         {
-        case nb::device::cpu::value: {
-            shape  = new int64_t[N];
-            stride = new int64_t[N];
-
-            switch (srcDevice)
-            {
-            case nb::device::cpu::value:
-                memcpy(shape, srcshape, N * sizeof(int64_t));
-                memcpy(stride, srcstride, N * sizeof(int64_t));
-                break;
-#ifdef __CUDACC__
-            case nb::device::cuda::value:
-                cudaMemcpy(shape, srcshape, sizeof(size_t) * N, cudaMemcpyDeviceToHost);
-                cudaMemcpy(stride, srcstride, sizeof(size_t) * N, cudaMemcpyDeviceToHost);
-                break;
-#endif
-            default:
-                Free();
-                throw std::runtime_error("Unsupported device when copying (" + std::to_string(device) + "/" +
-                                         std::to_string(srcDevice) + ")!");
-            }
+            shape  = static_cast<int64_t*>(AllocateBytes(bytes, device, deviceId));
+            stride = static_cast<int64_t*>(AllocateBytes(bytes, device, deviceId));
+            CopyBytes(shape, device, srcshape, srcDevice, bytes);
+            CopyBytes(stride, device, srcstride, srcDevice, bytes);
         }
-        break;
-#ifdef __CUDACC__
-        case nb::device::cuda::value: {
-            cudaMalloc(&shape, sizeof(int64_t) * N);
-            cudaMalloc(&stride, sizeof(int64_t) * N);
-
-            cudaMemcpyKind cpyMode;
-            switch (srcDevice)
-            {
-            case nb::device::cpu::value:
-                cpyMode = cudaMemcpyHostToDevice;
-                break;
-            case nb::device::cuda::value:
-                cpyMode = cudaMemcpyDeviceToDevice;
-                break;
-            default:
-                Free();
-                throw std::runtime_error("Unsupported device when copying (" + std::to_string(device) + "/" +
-                                         std::to_string(srcDevice) + ")!");
-            }
-
-            cudaMemcpy(shape, srcshape, sizeof(int64_t) * N, cpyMode);
-            cudaMemcpy(stride, srcstride, sizeof(int64_t) * N, cpyMode);
-        }
-        break;
-#endif
-        default:
+        catch (...)
+        {
             Free();
-            throw std::runtime_error("Unsupported device when copying (" + std::to_string(device) + "/" +
-                                     std::to_string(srcDevice) + ")!");
+            throw;
         }
     }
 };
