@@ -1,0 +1,173 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page ponca_concepts Concepts reference
+
+  \tableofcontents
+
+  %Ponca does not rely on virtual interfaces. Its classes are templates assembled at compile time, and the types
+  provided by users (points, weight kernels, neighbor filters, computational objects) are only required to define a
+  given set of types and functions. These sets of requirements are called *concepts*. This page lists them, and is the
+  reference for the template parameters documented as "Implements ...Concept" in the C++ API.
+
+  Two kinds of concepts coexist in the library:
+  - **documentation concepts**, described on this page with a reference declaration taken from the file
+    `doc/examples/concepts.hpp` (namespace `Ponca::Concept`). This file is only read by Doxygen: it is not compiled
+    and there is no base class to inherit from;
+  - **C++20 concepts**, written with `requires` clauses, that check at compile time that the classes are combined
+    correctly (e.g. Ponca::IsPoint, Ponca::ProvidesAlgebraicSphere). They are listed in \ref concepts_cpp20, and the
+    capabilities of the fitting classes are detailed in \ref fittingreference_outputandcapabilities.
+
+  \note The rationale for this design is given in \ref ponca_points. Most computations in %Ponca are very small
+  (accumulating a few sums per neighbor), so the cost of virtual calls would be significant, while templates let the
+  compiler inline and optimize the combination of all the computations.
+
+  \section concepts_point Point concept
+
+  A point type describes how %Ponca accesses the data of one sample. The minimal declaration is:
+
+  \snippet concepts.hpp PointConcept
+
+  | Member                                    | Required by                                                                 |
+  |-------------------------------------------|-----------------------------------------------------------------------------|
+  | `enum { Dim }`                            | all classes (dimension of the ambient space, e.g. 3)                        |
+  | `Scalar`, `VectorType`                    | all classes (Ponca::ProvidesCommonTypes); `VectorType` must have the API of `Eigen::Matrix<Scalar, Dim, 1>` |
+  | `MatrixType`                              | neighbor filters (Ponca::DistWeightFilter, Ponca::NoWeightFilter, ...) and covariance-based methods; define it as `Eigen::Matrix<Scalar, Dim, Dim>` |
+  | default constructor                       | containers, kd-trees, point generation functions                            |
+  | `pos() const`                             | all classes (Ponca::IsPoint)                                                |
+  | `pos()` (write access)                    | only the point generation functions of the Common module                    |
+  | `normal() const`                          | methods using normals (Ponca::ProvidesNormal): Ponca::MeanNormal, Ponca::OrientedSphereFit, Ponca::UnorientedSphereFit, Ponca::MeanPlaneFit, Ponca::CNC |
+
+  The accessors may return a reference to an `Eigen::Matrix`, or any object implicitly convertible to it, such as an
+  `Eigen::Map` over an external buffer (this is how Ponca::PointPositionNormalBinding avoids copies).
+
+  To be usable in CUDA kernels, every member function must be declared with the `PONCA_MULTIARCH` macro, see
+  \ref ponca_gpu_page.
+
+  Ready-to-use point types are listed in \ref points_utility.
+
+  \section concepts_weighting Weight kernel concept
+
+  A weight kernel is a 1D function \f$\phi\f$ mapping a normalized distance \f$x = \|\mathbf{q}-\mathbf{p}\|/t\f$
+  to a weight. It is used by Ponca::DistWeightFilter, see \ref fitting_neighborhoods.
+
+  \snippet concepts.hpp WeightKernelConcept
+
+  In addition to `f`, `df` and `ddf` (the kernel and its first and second derivatives), a kernel declares three
+  compile-time flags:
+
+  | Flag                             | Meaning                                                                                    |
+  |----------------------------------|--------------------------------------------------------------------------------------------|
+  | `static constexpr bool isCompact` | `true` if \f$\phi(x) = 0\f$ for \f$x \geq 1\f$: Ponca::DistWeightFilter then gives a null weight to every point farther than \f$t\f$ without evaluating the kernel |
+  | `static constexpr bool isDValid`  | `true` if `df` is valid; required to compute derivatives (Ponca::KernelProvidesFirstOrderDerivative) |
+  | `static constexpr bool isDDValid` | `true` if `ddf` is valid; required by second order derivatives (Ponca::KernelProvidesSecondOrderDerivative) |
+
+  The kernels provided by %Ponca are listed in \ref fitting_kernel.
+
+  \section concepts_neighborfilter Neighbor filter concept
+
+  A neighbor filter is constructed for each evaluation, from an evaluation position \f$\mathbf{p}\f$ and a scale
+  \f$t\f$. It tells, for any point, its weight and its coordinates expressed in a local frame. The library provides
+  Ponca::DistWeightFilter, Ponca::NoWeightFilter, Ponca::NoWeightFilterGlobal and Ponca::FilterWithAttributes (see
+  \ref fitting_filters). The general API is:
+
+  \snippet concepts.hpp FilterConcept
+
+  More precisely, a neighbor filter must:
+  - define the types `DataPoint`, `Scalar`, `VectorType`, `MatrixType`, `NeighborhoodFrame` (the frame class it
+    derives from) and `WeightReturnType` (a pair `{weight, local position}`),
+  - be constructible from `(const VectorType& center, Scalar scale)` (this constructor is used by the
+    `setNeighborFilter({p, t})` idiom), and by default,
+  - provide `operator()(const DataPoint& q)`, returning the weight of `q` and its coordinates in the local frame;
+    points with a null weight are ignored by Ponca::Basket::addNeighbor,
+  - provide `frame()` (the neighborhood frame, see below) and `evalScale()` (the scale \f$t\f$, used for instance by
+    the scale-invariant GLS parameters),
+  - provide the derivatives of the weight with respect to the scale and to the evaluation position (`scaledw`,
+    `scaled2w`, `spacedw`, `spaced2w`, `scaleSpaced2w`). They are only called when derivatives are requested (see
+    \ref fitting_derivatives), and can return 0 for filters that do not depend on \f$\mathbf{p}\f$ or \f$t\f$.
+
+  These requirements are checked by Ponca::IsNeighborhoodFilter and Ponca::IsNeighborhoodFrame.
+
+  \subsection concepts_frame Neighborhood frames
+
+  Every filter derives from a *neighborhood frame*, which converts coordinates between the global frame of the point
+  cloud and the local frame used internally by the computations:
+
+  | Frame                          | Local coordinates                                           | `hasLocalFrame` |
+  |--------------------------------|-------------------------------------------------------------|-----------------|
+  | Ponca::CenteredNeighborhoodFrame | \f$\mathbf{x}' = \mathbf{x} - \mathbf{p}\f$ (positions only, directions are unchanged) | `true` |
+  | Ponca::GlobalNeighborhoodFrame   | \f$\mathbf{x}' = \mathbf{x}\f$                              | `false`         |
+
+  A frame provides `center()`, `changeNeighborhoodFrame(newCenter)`, `convertToLocalBasis(q, isPositionVector)` and
+  `convertToGlobalBasis(q, isPositionVector)`, where `isPositionVector` must be `false` for directions (normals,
+  gradients, displacements), which are not affected by translations. Some primitives require a centered frame to
+  remain accurate (e.g. Ponca::AlgebraicSphere requires Ponca::HasLocalFrame). See \ref fitting_frames for practical
+  consequences.
+
+  \section concepts_computObjectBasket Computational object concept (Basket extensions)
+
+  The fitting module combines *computational objects* in a Ponca::Basket. Each of them is a class template
+  parameterized by the point type, the neighbor filter and its base class `T`, from which it derives (this is the
+  Curiously Recurring Template Pattern explained in \ref crtpestimator):
+
+  \snippet concepts.hpp ComputationalObjectConcept
+
+  - `PONCA_FITTING_DECLARE_DEFAULT_TYPES` defines `Base` (alias for `T`), `Scalar`, `VectorType` and
+    `NeighborFilter`. Note that this macro ends with a `public:` section.
+  - `init()` resets the internal state, `addLocalNeighbor(w, localQ, attributes)` accumulates one neighbor of weight
+    `w`, whose position in the local frame is `localQ` and whose attributes (position, normal, ...) are given by
+    `attributes`, and `finalize()` computes the result and returns a Ponca::FIT_RESULT. Each of them must first call
+    the version of its base class (`Base::init()`, `Base::addLocalNeighbor(...)`, `Base::finalize()`).
+  - In the current API, `addLocalNeighbor` returns `void` (the snippet above shows the former `bool` return type).
+  - The requirements on the other members of the basket (e.g. "an algebraic sphere must be provided") are expressed
+    with a `requires` clause on C++20 capability concepts (`ProvidesREQUIREMENT_1<T>` above).
+
+  Writing new computational objects is detailed in \ref fitting_extending_page.
+
+  \section concepts_computObjectBasketDiff Computational derivatives concept (BasketDiff extensions)
+
+  Ponca::BasketDiff extends an existing basket to compute derivatives with respect to the scale and/or the evaluation
+  position. Its extensions follow the same principle, with an additional template parameter giving the
+  differentiation type (a combination of Ponca::FitScaleDer and Ponca::FitSpaceDer):
+
+  \snippet concepts.hpp ComputationalDerivativesConcept
+
+  - `PONCA_FITTING_DECLARE_DEFAULT_DER_TYPES` defines `ScalarArray` (a row vector with one entry per derivative) and
+    `VectorArray` (a `Dim` x number-of-derivatives matrix).
+  - `addLocalNeighbor` receives the derivatives `dw` of the weight of the neighbor, laid out as described in
+    \ref fitting_derivatives_layout.
+
+  \section concepts_computeobject Compute objects
+
+  A *compute object* is any class deriving from Ponca::ComputeObject. It provides the functions that iterate over a
+  neighborhood and return a Ponca::FIT_RESULT:
+  - `compute(begin, end)`: process the points of an iterator range,
+  - `computeWithIds(ids, points)`: process the points `points[i]` for every index `i` of the range `ids` (e.g. the
+    result of a kd-tree query),
+  - `compute(container)`: shortcut for `compute(std::begin(container), std::end(container))`, only available on the
+    CPU.
+
+  Ponca::Basket, Ponca::BasketDiff and Ponca::CNC are compute objects, and so are the objects returned by the
+  Ponca::Factory. The evaluation schemes (Ponca::SingleEvaluationScheme, Ponca::MLSEvaluationScheme) take a compute
+  object as first argument.
+
+  \section concepts_cpp20 C++20 concepts used by the library
+
+  | Domain                | Concepts                                                                                          |
+  |-----------------------|---------------------------------------------------------------------------------------------------|
+  | Points                | Ponca::ProvidesCommonTypes, Ponca::IsPoint, Ponca::ProvidesNormal, Ponca::Is3D                    |
+  | Filters and kernels   | Ponca::IsNeighborhoodFrame, Ponca::IsNeighborhoodFilter, Ponca::ProvidesNeighborhoodFilter, Ponca::HasLocalFrame, Ponca::KernelProvidesFirstOrderDerivative, Ponca::KernelProvidesSecondOrderDerivative |
+  | Baskets               | Ponca::ProvidesComputeState, Ponca::ProvidesBasketUnitBase, Ponca::ProvidesBasketDiffUnitBase, Ponca::ProvidesScaleDerivative, Ponca::ProvidesSpaceDerivative, Ponca::ProvidesDerivatives |
+  | Fitting capabilities  | `Ponca::Provides*` concepts, see \ref fittingreference_outputandcapabilities                      |
+  | Containers            | Ponca::ValidCapacity                                                                              |
+
+  When a requirement is not met, the compiler reports which concept is not satisfied, see
+  \ref fitting_newcapabilities for an example.
+*/
+} // namespace Ponca

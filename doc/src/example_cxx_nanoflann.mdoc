@@ -6,35 +6,36 @@
 
 
 /*!
-  \page example_cxx_nanoflann_page Comparison between Nanoflann and Ponca KdTree APIs
+  \page example_cxx_nanoflann_page Comparison between the Nanoflann and Ponca kd-trees
 
   \section nanoflann_intro_sec Introduction
 
-  This example demonstrates how to use Ponca and <a href="https://github.com/jlblancoc/nanoflann" target="_blank">
-  Nanoflann</a> (v1.5.0) KdTrees on the same data, and compare runtime performances.
+  This example uses the kd-trees of %Ponca and of
+  <a href="https://github.com/jlblancoc/nanoflann" target="_blank">Nanoflann</a> (v1.5.0, shipped with the example) on
+  the same data, and compares their API and their performances to collect neighborhoods.
 
   \subsection nanoflann_compilation_sec Compilation
 
-  As for other examples, you need to enable the compilation of the examples with `cmake`, and build the examples:
-
-  \code
-  cmake [..] -DPONCA_CONFIGURE_EXAMPLES=ON
-  make ponca-examples // or make ponca_nanoflann
+  \code{.sh}
+  cmake --build build --target ponca_nanoflann
+  ./build/examples/cpp/nanoflann/ponca_nanoflann
   \endcode
 
-  \section nanoflann_comparison_sec API comparisons
+  \section nanoflann_comparison_sec API comparison
 
-  Task             | Ponca                                                 | Nanoflann
-  ---------------- | ----------------------------------------------------- | -------------
-  KdTree Creation  | \snippet ponca_nanoflann.cpp Create Ponca KdTree      | \snippet ponca_nanoflann.cpp Create NanoFlann KdTree
-  Range Query      | \snippet ponca_nanoflann.cpp Use Ponca KdTree  | \snippet ponca_nanoflann.cpp Use NanoFlann KdTree
+  Task              | %Ponca                                                | Nanoflann
+  ----------------- | ----------------------------------------------------- | -------------
+  KdTree creation   | \snippet ponca_nanoflann.cpp Create Ponca KdTree      | \snippet ponca_nanoflann.cpp Create NanoFlann KdTree
+  Range query       | \snippet ponca_nanoflann.cpp Use Ponca KdTree         | \snippet ponca_nanoflann.cpp Use NanoFlann KdTree
 
-  The fitting object is a Ponca::DryFit, an object that filter the neighbors according to their weight (out of scale points
-  are not counted), but do not perform any other computation:
+  The fitting object is a Ponca::DryFit, an object that filters the neighbors according to their weight (points
+  farther than the scale are not counted), but does not perform any other computation:
   \snippet ponca_nanoflann.cpp Define Fit Type
 
   \section nanoflann_timings_sec Timings
-  The example output the time required to collect the neighbors, and the number of neighbors collected:
+
+  The example prints the time required to collect the neighbors, and the number of neighbors collected, without
+  spatial data structure (*Raw*) and with both kd-trees. For instance:
   \code
 Timings:
 Raw :       0.168698
@@ -46,8 +47,7 @@ Ponca :     950618
 Nanoflann : 950618
   \endcode
 
-  \section nanoflann_sourcecode_sec Example source code
-  Source file: `ponca_nanoflann.cpp`
-  \include ponca_nanoflann.cpp
+  \section nanoflann_sourcecode_sec Source code
 
+  \include ponca_nanoflann.cpp
  */

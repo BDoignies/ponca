@@ -1,215 +1,245 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 namespace Ponca
 {
 /*!
-  \page spatialpartitioning Spatial Partitioning: User Manual
-
-  <center>[\ref user_manual_page "Go back to user manual"]</center>
+  \page spatialpartitioning Spatial Partitioning module: user manual
 
   \tableofcontents
 
   \section spatialpartitioning_intro Introduction
-  This module provides spatial datastructures to speed up spatial queries (e.g., neighbors search).
 
-  \subsection spatialpartitioning_intro_structures Datastructures
+  This module provides spatial data structures that accelerate neighbor queries in point clouds, typically to
+  collect the neighborhoods processed by the \ref fitting. Include its header:
+  \code
+  #include <Ponca/SpatialPartitioning>
+  \endcode
 
-   - Ponca::KdTreeDense and Ponca::KdTreeSparse: binary search trees (https://en.wikipedia.org/wiki/K-d_tree). Both
-     classes inherit from Ponca::KdTree. KdTrees can be also used in \ref spatialpartitioning_kdtree_cuda "cuda kernels".
-   - Ponca::KnnGraph : a nearest neighbor graph (https://en.wikipedia.org/wiki/nearestNeighbor_graph). Constructed from
-   a Ponca::KdTree.
+  \subsection spatialpartitioning_intro_structures Data structures
 
-   All datastructures are available in arbitrary dimensions.
+  - Ponca::KdTreeDense and Ponca::KdTreeSparse: binary space partitioning trees
+    (<a href="https://en.wikipedia.org/wiki/K-d_tree" target="_blank">k-d trees</a>). Ponca::KdTreeSparse can be
+    built over a subset of the points. Both share the API of Ponca::KdTree. Kd-trees built on the CPU can be
+    queried in CUDA kernels (see \ref spatialpartitioning_kdtree_cuda).
+  - Ponca::KnnGraph: the graph connecting every point to its k nearest neighbors
+    (<a href="https://en.wikipedia.org/wiki/Nearest_neighbor_graph" target="_blank">k-NN graph</a>), built from a
+    kd-tree.
+  - Ponca::NeighborGraph: the graph connecting every point to all the points closer than a given distance, built
+    from a kd-tree.
+
+  All the data structures work in arbitrary dimension.
 
   \subsection spatialpartitioning_intro_queries Queries
-  Ponca queries are defined according to their input type (QueryInputIsIndex, or QueryInputIsPosition) and their
-  output type (closest point with QueryOutputIsNearest, k-neighborhood with QueryOutputIsKNearest, and range
-  neighborhood with QueryOutputIsRange):
 
-  | QueryType  | Closest Point     | k-neighborhood     | Range neighborhood |
-  |------------|-------------------|--------------------|--------------------|
-  | Index      | NearestIndexQuery | KNearestIndexQuery | RangeIndexQuery    |
-  | Coordinate | NearestPointQuery | KNearestPointQuery | RangePointQuery    |
+  %Ponca queries are defined by their input (the index of a point of the data structure, Ponca::QueryInputIsIndex, or
+  an arbitrary position, Ponca::QueryInputIsPosition) and by their output (the nearest neighbor,
+  Ponca::QueryOutputIsNearest, the k nearest neighbors, Ponca::QueryOutputIsKNearest, or the neighbors closer than a
+  radius, Ponca::QueryOutputIsRange):
 
-  These classes provide a consistent API for all datastructures, where the results are exposed as `Range` and thus
-  accessed through iterators, ie.:
+  | Input      | Nearest neighbor          | k nearest neighbors        | Range neighborhood       |
+  |------------|---------------------------|----------------------------|--------------------------|
+  | Index      | Ponca::NearestIndexQuery  | Ponca::KNearestIndexQuery  | Ponca::RangeIndexQuery   |
+  | Position   | Ponca::NearestPointQuery  | Ponca::KNearestPointQuery  | Ponca::RangePointQuery   |
+
+  These classes provide the same API for all the data structures. The queries are created by the data structure, and
+  their results are exposed as ranges of indices, accessed through iterators:
   \code
-#pragma omp parallel for
-for (int i = 0; i < nbVert; ++i) // for all the vertices of the point cloud
-  for (int neiId : myDataStructure.kNearestNeighbors(i, k)) // collect k-nearest neighbors
-  {
-    // process neighbor at index neiId
-  }
+  #pragma omp parallel for
+  for (int i = 0; i < nbPoints; ++i)               // for all the points of the point cloud
+      for (int j : kdtree.kNearestNeighbors(i, k)) // collect the k nearest neighbors of the point i
+      {
+          // process the neighbor of index j
+      }
   \endcode
 
-  \note As queries are objets that are independent from the datastructure, they can be created and used in parallel from
-  multiple threads.
-  The queries are always constructed by the datastructure.
+  The semantics of the results are the following:
+  - the indices refer to the point container of the data structure (`points()`),
+  - queries from an index never return the queried index itself,
+  - k-nearest neighbors are returned sorted by increasing distance, and `k` is bounded by `Traits::MAX_KNN_SIZE`
+    (128 with the default traits),
+  - range queries return the points strictly closer than the radius, in no particular order.
 
-  Thanks to the iterator formalism, queries can be seamlessly combined with Basket::computeWithIds:
+  \note Queries are objects independent from the data structure (they only refer to it), so they can be created and
+  used concurrently by several threads. They are evaluated lazily: the search is performed when iterating over them.
+
+  Thanks to the iterator formalism, queries can be directly given to Ponca::Basket::computeWithIds:
   \code
-Fit fit;
-fit.setNeighborFilter({fitInitPos, scale});
-fit.computeWithIds( myDataStructure.rangeNeighbors(fitInitPos, scale), vectorPoints );
+  Fit fit;
+  fit.setNeighborFilter({position, radius});
+  fit.computeWithIds(kdtree.rangeNeighbors(position, radius), kdtree.points());
   \endcode
-
-  \warning Queries from an index (NearestIndexQuery, KNearestIndexQuery and RangeIndexQuery) do not iterate on the
-  queried index.
-
 
   \section spatialpartitioning_kdtree KdTree
 
   \subsection spatialpartitioning_kdtree_implementation Specifications
-  In Ponca, the kd-tree is a binary search tree that
-  - is balanced (cuts at the median at each node),
-  - cuts along the dimension that extends the most at each node,
-  - has a maximal depth (KdTreeBase::MAX_DEPTH),
-  - has a minimal number of points per leaf (KdTreeBase::m_min_cell_size),
-  - only stores points in the leafs,
-  - uses depth-first search with a static stack for queries,
-  - keeps the initial order of points.
+
+  In %Ponca, the kd-tree is a binary tree in which:
+  - each inner node splits its bounding box in two halves, at the center of the box, along its largest dimension
+    (the tree is therefore not balanced in general),
+  - a node becomes a leaf when it contains at most `minCellSize()` samples (64 by default, see
+    Ponca::StaticKdTreeBase::setMinCellSize), or when it reaches the maximal depth `Traits::MAX_DEPTH` (32 with the
+    default traits),
+  - points are only referenced by the leaves, through a contiguous range of the array of samples,
+  - the queries perform a depth-first traversal with a fixed-size stack, and prune the nodes that are farther than the
+    current search distance,
+  - the initial order of the points is kept: only the array of samples is reordered.
 
   \subsection spatialpartitioning_kdtree_usage Basic usage
-  The class Ponca::KdTreeDense provides methods to construct a tree and query points neighborhoods. The class
-  Ponca::KdTreeSparse provides the same functionalities as its dense counterpart, but allows construction from a subset
-  of points. They both share the same API with their abstract base class KdTree.
+
+  Ponca::KdTreeDense builds a tree over all the points of a container. Ponca::KdTreeSparse provides the same
+  functionalities, but can also be built from a subset of the points. Both share the API of their base class
+  Ponca::KdTree.
 
   \subsubsection spatialpartitioning_kdtree_usage_construction Construction
-  As for the other modules, the point type is defined by a template parameter `DataPoint`.
-  At construction time, the coordinates are copied in the tree from a container provided by the caller.
-  For instance, to generate a tree from a random point cloud:
+
+  As for the other modules, the point type is a template parameter `DataPoint` (see \ref ponca_points). The points
+  are copied into the tree at construction, for instance from a random point cloud:
   \snippet examples/cpp/ponca_neighbor_search.cpp Kdtree Dense construction
 
-  For convenience, it is possible to convert the custom input points to `DataPoint` using a converter.
+  The tree can also be default-constructed and built later with `build(points)`, e.g. after changing the maximal size
+  of the leaves with `setMinCellSize()`. `build(points, converter)` converts a container of custom points into the
+  points of the tree with a user-provided functor (see Ponca::KdTreeBase::build).
 
-  When using a Ponca::KdTreeSparse, it is possible to provide a set of indices to sample a subset of the input point
-  during the construction.
-  Here, to randomly select half of the points:
+  A Ponca::KdTreeSparse can be built from a set of indices, to sample a subset of the input points. Here, to select
+  half of the points randomly:
   \snippet examples/cpp/ponca_neighbor_search.cpp Kdtree Sampling construction
 
   \subsubsection spatialpartitioning_kdtree_usage_queries Queries
-  As for other datastructures, queries are objects generated by the KdTree, and are designed as `Range`: accessing
-  the neighbors requires to iterate over the query.
-  Here an example of the k nearest neighbors search of the point of index `query_idx` using the kd tree
+
+  Queries are objects generated by the kd-tree, and are designed as ranges: the neighbors are accessed by iterating
+  over the query. For instance, the k nearest neighbors of the point of index `query_idx` are obtained as follows:
   \snippet examples/cpp/ponca_neighbor_search.cpp Kdtree k-nearest neighbors index search
 
-  Queries are mutable and can be reused. Here is an example of a query being reused with a different evaluation point index, `second_query_idx`.
+  The kd-tree provides one function per query type, each of them taking either an index or a position:
+  - `nearestNeighbor(input)`, `kNearestNeighbors(input, k)` and `rangeNeighbors(input, radius)` create and set up a
+    query,
+  - `nearestNeighborQuery()`, `kNearestNeighborsQuery()`, `rangeNeighborsQuery()` (position input) and
+    `nearestNeighborIndexQuery()`, `kNearestNeighborsIndexQuery()`, `rangeNeighborsIndexQuery()` (index input) create
+    an empty query, to be set up later.
+
+  Queries are mutable and can be reused, by calling them with new parameters. Here, a range query is reused with a
+  different point index, `second_query_idx`:
   \snippet examples/cpp/ponca_neighbor_search.cpp Kdtree range neighbors index mutable search
 
-  It is also possible to call for an empty query, and then perform the query call on it.
+  An empty query can also be created, then called with its parameters:
   \snippet examples/cpp/ponca_neighbor_search.cpp Kdtree range neighbors position mutable search
-  The previous query is restricted to position based range query. To perform an index based research, a new query needs to be created.
-  This is due to the fact that query returns object of it's own type, e.g., PointQuery or IndexQuery.
 
-  Several query types are provided (see KdTreeBase for related method list):
-   - KdTreeKNearestQueryBase, specialized by KdTreeKNearestIndexQuery and KdTreeKNearestPointQuery
-   - KdTreeNearestQueryBase, specialized by KdTreeNearestIndexQuery and KdTreeNearestPointQuery
-   - KdTreeRangeQueryBase, specialized by KdTreeRangeIndexQuery and KdTreeRangePointQuery
+  The type of the input is part of the type of the query: a position query cannot be reused with an index, a new query
+  must be created.
 
-  Several KdTree queries are illustrated in the example \ref example_cxx_neighbor_search.
-  KdTree usage is also demonstrated both in tests and examples:
-   - `tests/src/basket.cpp`
-   - `tests/src/queries_knearest.cpp`
-   - `tests/src/queries_nearest.cpp`
-   - `tests/src/queries_range.cpp`
-   - `examples/cpp/nanoflann/ponca_nanoflann.cpp`
-  
+  The available query classes are (see Ponca::KdTreeBase for the related functions):
+  - Ponca::KdTreeKNearestQueryBase, specialized by Ponca::KdTreeKNearestIndexQuery and Ponca::KdTreeKNearestPointQuery,
+  - Ponca::KdTreeNearestQueryBase, specialized by Ponca::KdTreeNearestIndexQuery and Ponca::KdTreeNearestPointQuery,
+  - Ponca::KdTreeRangeQueryBase, specialized by Ponca::KdTreeRangeIndexQuery and Ponca::KdTreeRangePointQuery.
+
+  These queries are illustrated in \ref example_cxx_neighbor_search, and used in the tests
+  (`tests/src/queries_knearest.cpp`, `tests/src/queries_nearest.cpp`, `tests/src/queries_range.cpp`,
+  `tests/src/basket.cpp`) and in \ref example_cxx_nanoflann_page.
+
   \subsubsection spatialpartitioning_kdtree_usage_samples_and_indexing Samples and indexing
-  There are two main ways of iterating over a KdTree: over points or over samples. Points are the underlying data
-  storage, which the KdTree does not modify, while samples are a set of indices into the point storage that the KdTree
-  reorders internally when it is constructed to keep track of spatial partitions.
 
-  We call indices into the underlying point storage *point indices* and indices into the sample storage *sample
-  indices*. Note that the sample storage stores point indices: sample number 0 may, for example, refer to point number 25.
-  The point storage can be accessed with KdTreeBase::points, while the array of samples can be accessed with
-  KdTreeBase::samples.
+  There are two ways of iterating over a kd-tree: over its points, or over its samples. The points are the
+  underlying data storage, which the kd-tree does not reorder, while the samples are an array of indices into the
+  point storage, reordered by the kd-tree during its construction to group the points of each leaf.
 
-  While most of the KdTree API is built on using point indices, it can still be useful to iterate over samples instead
-  (e.g. when using a Ponca::KdTreeSparse). If you ever need to convert sample indices to point indices, see
-  KdTreeBase::pointFromSample (see also KdTreeBase::pointDataFromSample).
+  Indices into the point storage are called *point indices*, and indices into the sample storage *sample indices*.
+  Note that the sample storage contains point indices: the sample number 0 may, for example, refer to the point
+  number 25. The point storage is accessed with Ponca::StaticKdTreeBase::points, and the array of samples with
+  Ponca::StaticKdTreeBase::samples. For a Ponca::KdTreeSparse, `sampleCount()` is smaller than `pointCount()`.
 
- \subsection spatialpartitioning_kdtree_cuda Usage in Cuda kernels
-  Ponca allows to build a KdTree on the CPU, bind its buffers to the GPU, and build objects of that bind the KdTree API
-  in top of the mapped buffers.
+  The API of the kd-tree takes and returns point indices. To iterate over the samples instead (e.g. with a
+  Ponca::KdTreeSparse), convert sample indices to point indices with Ponca::StaticKdTreeBase::pointFromSample (see
+  also Ponca::StaticKdTreeBase::pointDataFromSample).
 
-  This is illustrated in the example `examples/cuda/ponca_fit_kdtree.cu`:
+  \subsection spatialpartitioning_kdtree_usage_which_class Usage of the classes KdTree and KdTreeBase
 
-  - [host] Generate KdTree on the CPU:
-    \snippet examples/cuda/ponca_fit_kdtree.cu Build KdTree on CPU
-  - [host] Copy the KdTree buffers to the GPU:
-    \snippet examples/cuda/ponca_fit_kdtree.cu Copy KdTree on GPU
-  - [device] In the kernel, create and query the KdTree:
-    \snippet examples/cuda/ponca_fit_kdtree.cu Create KdTree on the GPU
-    \snippet examples/cuda/ponca_fit_kdtree.cu Use KdTree on the GPU
-  - [host] Free GPU memory.
+  Ponca::KdTree is the common interface of Ponca::KdTreeDense and Ponca::KdTreeSparse. It can be used to store or
+  pass references or pointers to either of them:
+  \snippet examples/cpp/ponca_neighbor_search.cpp KdTree pointer usage
+  \snippet examples/cpp/ponca_neighbor_search.cpp KdTree assign sparse
+  \snippet examples/cpp/ponca_neighbor_search.cpp KdTree assign dense
 
-  The type `KdTreeGPU` is defined as
-  \snippet examples/cuda/cuda_utils.cu Definition KdTreeGPU
+  Ponca::KdTreeBase, and its base class Ponca::StaticKdTreeBase, provide these abstractions for arbitrary traits
+  (buildable and read-only trees, respectively). When the type of `Traits` is arbitrary (but known at compile time),
+  use one of these classes to declare function parameters or variables. In the class Ponca::KdTreeQuery, for
+  instance, the link to the kd-tree is stored as follows:
+  \snippet kdTreeQuery.h KdTreeQuery kdtree type
+  Here, `m_kdtree` can be either dense or sparse, and have any type of `Traits`.
 
-  Internally, the class StaticKdTreeBase is the base class of KdTreeBase, and provide all the querying API without the
-  building functionalities (except from an already existing set of StaticKdTreeBase::Buffers). In order to be able to
-  handle raw pointers in the Cuda kernels, the `KdTreeGPU` uses KdTreePointerTraits, which defines all the internal
-  containers as raw pointers. In the above example, these pointers are generated by copying the content of a
-  `std::vector` using `CudaMalloc` and `CudaMemcpy` (see method `deepCopyBuffersToDevice` in
-  `examples/cuda/cuda_utils.cu`).
+  \subsection spatialpartitioning_kdtree_extending Customizing the KdTree using Traits
 
-  \subsection spatialpartitioning_kdtree_extending Customizing the KdTree using `Traits`
-  The trees can be customized using `Traits`, to change containers and nodes types. KdTreeDefaultTraits provides
-  general-purpose `Traits` that fit most usages, and is directly used by Ponca::KdTree, Ponca::KdTreeDense and
+  The containers and the node types of the trees are defined by a `Traits` class. Ponca::KdTreeDefaultTraits provides
+  general-purpose traits that fit most usages, and is used by Ponca::KdTree, Ponca::KdTreeDense and
   Ponca::KdTreeSparse:
   \snippet kdTree.h KdTree type definition
   \snippet kdTree.h KdTreeDense type definition
   \snippet kdTree.h KdTreeSparse type definition
 
-  To use your own type of `Traits`, see KdTreeDefaultTraits and KdTreeCustomizableNode APIs. See also:
-   - `examples/cpp/ponca_customize_kdtree.cpp`
+  Custom traits can change the containers, the index types and the maximal depth, or store additional data in the
+  nodes. For instance, `examples/cpp/ponca_customize_kdtree.cpp` stores the bounding box of the inner nodes:
+  - define an inner node type storing the box,
+    \snippet ponca_customize_kdtree.cpp CustomInnerNodeDefinition
+  - define a node type using it (see Ponca::KdTreeCustomizableNode), and fill the new attribute when the node is
+    configured,
+    \snippet ponca_customize_kdtree.cpp CustomNodeDefinition
+  - define a kd-tree type using this node type,
+    \snippet ponca_customize_kdtree.cpp KdTreeTypeWithCustomNode
+  - read the new attribute from the nodes of the tree.
+    \snippet ponca_customize_kdtree.cpp ReadCustomProperties
 
+  See \ref example_cxx_customize_kdtree_page for the complete program.
 
-  \subsection spatialpartitioning_kdtree_usage_which_class Usage of the convenience classes KdTree and KdTreeBase
-  KdTree provides the common interface of KdTreeDense and KdTreeSparse. This class can be used to store
-  or pass references/pointers that can be of either child type, see for instance:
-  \snippet examples/cpp/ponca_neighbor_search.cpp KdTree pointer usage
-  \snippet examples/cpp/ponca_neighbor_search.cpp KdTree assign sparse
-  \snippet examples/cpp/ponca_neighbor_search.cpp KdTree assign dense
+  \subsection spatialpartitioning_kdtree_cuda Usage in CUDA kernels
 
-  KdTreeBase and its base class StaticKdTreeBase provide abstractions for arbitrary types of traits (constructible or
-  read-only, respectively). When the type of `Traits` is arbitrary (but known at compile time), it is recommended to use
-  one of these classes to declare functions parameters or variables. In the class KdTreeQuery<Traits> for instance, the link to
-  the KdTree is stored as follows:
-  \snippet kdTreeQuery.h KdTreeQuery kdtree type
-  Here, the variable `m_kdtree` can be either dense or sparse, and have any type of `Traits`.
+  Kd-trees are built on the CPU. Their buffers (points, nodes and samples) can then be copied to the GPU and wrapped
+  in a read-only tree (Ponca::StaticKdTreeBase) whose traits use raw pointers (Ponca::KdTreePointerTraits), which can
+  be queried in kernels. This is detailed in \ref ponca_gpu_page.
 
   \section spatialpartitioning_knngraph KnnGraph
+
   \subsection spatialpartitioning_knngraph_usage Basic usage
-  The class Ponca::KnnGraph provides methods to construct a neighbor graph and query points neighborhoods.
+
+  Ponca::KnnGraph stores, for every point, the indices of its k nearest neighbors. Neighbor queries then only read the
+  graph instead of traversing a tree.
 
   \subsubsection spatialpartitioning_knngraph_usage_construction Construction
-  The graph is constructed from an existing KdTree, and the point collection is accessed through it (with no copy). Here
-  an example from the test-suite where a graph is constructed, where only closest neighbors are connected:
+
+  The graph is constructed from a kd-tree, and accesses the points of the kd-tree without copying them:
   \snippet examples/cpp/ponca_neighbor_search.cpp KnnGraph construction
 
-  \warning At the moment, a KnnGraph can only be constructed from a Ponca::KdTreeDense. This will change in a future
-  release.
+  \warning The kd-tree must index all its points (no sub-sampling), and must outlive the graph. `k` is reduced to
+  `sampleCount() - 1` when it is larger.
 
   \subsubsection spatialpartitioning_knngraph_usage_queries Queries
-  As for other datastructures, queries are objects generated by KdTrees, and are designed as `Range`: accessing
-  the neighbors requires to iterate over the query.
+
+  As for kd-trees, queries are objects designed as ranges. The neighbors stored in the graph are accessed with
+  `oneConnectedNeighbors(index)` (or `kNearestNeighbors(index)`):
   \snippet examples/cpp/ponca_neighbor_search.cpp KnnGraph k-nearest neighbors index search
 
-  \note By construction, the KnnGraph can be queried only from an index.
+  \note Graphs can only be queried from the index of one of their points.
 
-  Queries from KnnGraph are also mutable, and can be reused. Here is an example that creates an empty query, and then iterates over the rangeNeighbors index search.
+  Range queries are also available. Starting from the queried point, they traverse the graph and collect the points
+  closer than the radius: only the points connected to the query through a path of points in the ball are returned.
+  This differs from a kd-tree range query when the k-NN graph does not connect the whole ball (e.g. when the point
+  cloud has several components, or when `k` is small with respect to the radius). Queries are mutable and can be
+  reused:
   \snippet examples/cpp/ponca_neighbor_search.cpp KnnGraph range neighbors index mutable search
 
-  Two types of queries are provided (see KnnGraphBase for related method list):
-   - NeighborGraphRangeQuery
-   - NeighborGraphKNearestQuery: the number of neighbors is defined at construction-time: a k-neighbor graph gives access to
-   k-neighborhoods only.
-   \note The query KnnGraphNearestQuery does not need to exist explicitly as it boils down to NeighborGraphKNearestQuery
-   with `k=1`.
+  Two types of queries are provided (see Ponca::AbstractNeighborGraph for the related functions):
+  - Ponca::NeighborGraphOneConnectedQuery: the neighbors stored in the graph. For a k-NN graph, the number of
+    neighbors is defined at construction: the graph only provides k-neighborhoods. A nearest neighbor query is the
+    first element of this query when the graph is built with `k = 1`;
+  - Ponca::NeighborGraphRangeQuery: the range query described above.
 
+  \section spatialpartitioning_neighborgraph NeighborGraph
 
-
-
-
-  <center>[\ref user_manual_page "Go back to user manual"]</center>
+  Ponca::NeighborGraph generalizes the k-NN graph: it connects every point to all the points closer than a given
+  distance, so that every point has its own number of neighbors. It is constructed from a kd-tree and the connection
+  distance (`NeighborGraph<DataPoint> graph(kdtree, distance)`), with the same restrictions as Ponca::KnnGraph, and
+  provides the same queries.
  */
 }

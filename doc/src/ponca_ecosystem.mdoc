@@ -1,41 +1,45 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 namespace Ponca
 {
 /*!
-	\page poncaecosysrem The ponca ecosystem
+  \page ponca_ecosystem_page The Ponca ecosystem
 
-	In itself, the Ponca library only offers the core implementation of algorithm usefull for point cloud processing and analysis. Therefore, Ponca does not include any way to visualize results or integrates with other libraries. However, the Ponca Team provides a few utilites and integration of the Ponca library. 
+  The %Ponca library only provides the core implementation of algorithms for point cloud processing and analysis: it
+  does not include any way to visualize the results, nor integrations with other libraries. The %Ponca team develops
+  a few tools built on top of the library:
 
-	\htmlonly
-	<center>
-		<table>
-			<tr>
-				<th>Name</th>
-				<th>Goal</th>
-				<th>Teaser</th>
-			</tr>
-			<tr>
-				<td><a href="https://github.com/poncateam/poncaplot">Poncaplot</a></td>
-				<td>Plot 2D scalar field from point cloud</td>
-				<td> <img width="350" alt="image" src="https://github.com/poncateam/poncaplot/assets/6310221/baddf074-6e32-447d-83aa-21d16fcd8977"></td>
-			</tr>
-			<tr>
-				<td><a href="https://github.com/poncateam/poncascope">Poncascope</a></td>
-				<td>Plot 3D point cloud and estimators</td>
-				<td>
-					<img width="350" alt="image" src="https://user-images.githubusercontent.com/6310221/134543845-2f9094dd-1025-482a-b735-504b9cd8c5cd.png">
-					<center><a href="https://www.youtube.com/watch?v=WRqO93rEy6s">[Video]</a></center>
-				</td>
-			</tr>			
-			<tr>
-				<td><a href="https://github.com/poncateam/ponca-igl"> Ponca-igl</a></td>
-				<td>3D Viewer and integration with <a href="https://libigl.github.io/">libigl</a>, a geometry processing library</td>
-				<td>TO BE COMMING</td>
-			</tr>
-		</table>
-	</center>
-	\endhtmlonly
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Goal</th>
+      <th>Teaser</th>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/poncateam/poncaplot" target="_blank">Poncaplot</a></td>
+      <td>Plot 2D scalar fields computed from 2D point clouds</td>
+      <td><img width="350" alt="Poncaplot screenshot" src="https://github.com/poncateam/poncaplot/assets/6310221/baddf074-6e32-447d-83aa-21d16fcd8977"/></td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/poncateam/poncascope" target="_blank">Poncascope</a></td>
+      <td>Visualize 3D point clouds and the estimators of %Ponca</td>
+      <td>
+        <img width="350" alt="Poncascope screenshot" src="https://user-images.githubusercontent.com/6310221/134543845-2f9094dd-1025-482a-b735-504b9cd8c5cd.png"/>
+        <br/><a href="https://www.youtube.com/watch?v=WRqO93rEy6s" target="_blank">[Video]</a>
+      </td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/poncateam/ponca-igl" target="_blank">Ponca-igl</a></td>
+      <td>3D viewer and integration with <a href="https://libigl.github.io/" target="_blank">libigl</a>, a geometry
+      processing library</td>
+      <td>Upcoming</td>
+    </tr>
+  </table>
 
-
-
+  The library also has a Python binding, documented in \ref pyponca.
  */
 } // namespace Ponca

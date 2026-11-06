@@ -6,17 +6,19 @@
 
 
 /*!
-  \page example_cu_kdtree_page Object-space Curvature using Cuda/C++ and KdTree queries
+  \page example_cu_kdtree_page Fitting with kd-tree queries in CUDA kernels
 
   \section cu_kdtree_intro_sec Introduction
 
-  This is an example that use Ponca to compute curvatures in C++ using Cuda, and querying neighbors on the GPU
-  using a KdTree.
+  This example fits a plane (Ponca::MeanPlaneFit) at every point of a planar point cloud, in a CUDA kernel. The
+  neighbors are collected on the GPU by querying a kd-tree built on the CPU and copied to the device (see
+  \ref ponca_gpu_spatial). The helper functions copying the buffers of the tree are defined in
+  `examples/cuda/cuda_utils.cu`.
 
-  To compile and run the example, call
-  \code
-  cd build && make cuda_fit_plane_kdtree
-  cd examples/cuda && ./cuda_fit_plane_kdtree
+  To compile and run the example:
+  \code{.sh}
+  cmake --build build --target cuda_fit_plane_kdtree
+  ./build/examples/cuda/cuda_fit_plane_kdtree
   \endcode
 
   \section cu_kdtree_code Source code

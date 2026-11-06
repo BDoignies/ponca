@@ -6,13 +6,21 @@
 
 
 /*!
-  \page example_cxx_binding_page Ponca data-structure binding
+  \page example_cxx_binding_page Binding existing data structures
 
-  This is an example of how to instantiate the \ref ponca_concepts "PointConcept"
-  in order to use Ponca on existing data structures without any memory
-  duplication. We apply exactly the same processing than in
-  \ref example_cxx_basic_page, but this time by taking an interlaced
-  raw buffer as input.
+  This example shows how to use %Ponca on data stored in an existing data structure, without memory duplication. The
+  input is a raw interlaced buffer storing, for each point, its position followed by its normal. The point type
+  Ponca::PointPositionNormalBinding implements the \ref concepts_point "point concept" by mapping this buffer: a point
+  is created on the fly for every neighbor, and only stores two `Eigen::Map` objects. The processing is otherwise the
+  same as in \ref example_cxx_basic_page.
+
+  Build and run:
+  \code{.sh}
+  cmake --build build --target ponca_binding
+  ./build/examples/cpp/ponca_binding
+  \endcode
+
+  See also \ref ponca_points_binding.
 
   \include cpp/ponca_binding.cpp
 */

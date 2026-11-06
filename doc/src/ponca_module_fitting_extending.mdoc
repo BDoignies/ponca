@@ -1,0 +1,322 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page fitting_extending_page Extending the Fitting module
+
+  \tableofcontents
+
+  The Fitting module is designed to be extended: new weight kernels, new neighbor filters and new computational objects
+  can be defined outside of the library, and combined with the existing classes. This page describes the API they must
+  follow (formally given in \ref ponca_concepts), and the mechanisms used to combine them.
+
+  \note Before defining a new computation, check \ref fittingreference_primitiveoverview and
+  \ref fittingreference_outputandcapabilities, as the result might already be available.
+
+  \section fitting_newkernel Defining a new weight kernel
+
+  Ponca::DistWeightFilter computes the weight of a neighbor at distance \f$d\f$ from the evaluation position as
+  \f$\phi(d/t)\f$, where \f$\phi\f$ is a *weight kernel*. A kernel provides the function and its first and second
+  derivatives, and three flags (see \ref concepts_weighting):
+
+  \snippet concepts.hpp WeightKernelConcept
+
+  For instance, the tricube kernel \f$\phi(x) = (1-x^3)^3\f$ is defined as:
+  \code
+  template <typename _Scalar>
+  class TricubeWeightKernel
+  {
+  public:
+      using Scalar = _Scalar;
+      static constexpr bool isCompact = true; // phi(x) = 0 for x >= 1
+      static constexpr bool isDValid  = true; // df is valid
+      static constexpr bool isDDValid = true; // ddf is valid
+
+      PONCA_MULTIARCH inline Scalar f(const Scalar& x) const
+      {
+          const Scalar v = Scalar(1) - x * x * x;
+          return v * v * v;
+      }
+      PONCA_MULTIARCH inline Scalar df(const Scalar& x) const
+      {
+          const Scalar v = Scalar(1) - x * x * x;
+          return Scalar(-9) * x * x * v * v;
+      }
+      PONCA_MULTIARCH inline Scalar ddf(const Scalar& x) const
+      {
+          const Scalar v = Scalar(1) - x * x * x;
+          return Scalar(-18) * x * v * v + Scalar(54) * x * x * x * x * v;
+      }
+  };
+
+  using Filter = Ponca::DistWeightFilter<Point, TricubeWeightKernel<Scalar>>;
+  \endcode
+
+  Ponca::DistWeightFilter also computes the derivatives of the weight with respect to the scale and to the evaluation
+  position from `df` and `ddf` (Ponca::DistWeightFilter::scaledw(), Ponca::DistWeightFilter::scaled2w(),
+  Ponca::DistWeightFilter::spacedw(), Ponca::DistWeightFilter::spaced2w(),
+  Ponca::DistWeightFilter::scaleSpaced2w()). These functions are only available when the corresponding flag is
+  `true`, and are only used when derivatives are computed (see \ref fitting_derivatives).
+
+  \section fitting_newfilter Defining a new neighbor filter
+
+  Neighbor filters decide how much each point contributes to a fit, and in which frame its coordinates are given to
+  the computations. Ponca::DistWeightFilter covers most needs, but other parameters can be taken into account, e.g.
+  the normal of the points, a confidence value, or a segmentation label.
+
+  \subsection fitting_newfilterapi Filter API
+
+  The general API of a filter is:
+
+  \snippet concepts.hpp FilterConcept
+
+  A filter derives from a neighborhood frame, either Ponca::CenteredNeighborhoodFrame (the coordinates of a point
+  \f$\mathbf{q}\f$ become \f$\mathbf{q}-\mathbf{p}\f$, where \f$\mathbf{p}\f$ is the evaluation position) or
+  Ponca::GlobalNeighborhoodFrame (coordinates are not modified). Its call operator returns the weight of the point and
+  its local coordinates: points with a null weight are ignored. The requirements are detailed in
+  \ref concepts_neighborfilter.
+
+  The simplest way to define a new filter is often to derive from an existing one. The following filter ignores the
+  neighbors whose normal points to the opposite direction of a reference normal, which helps to analyze thin
+  structures whose two sides are close to each other:
+  \code
+  template <class DataPoint>
+  class NormalAgreementFilter
+      : public Ponca::DistWeightFilter<DataPoint, Ponca::SmoothWeightKernel<typename DataPoint::Scalar>>
+  {
+      using Base = Ponca::DistWeightFilter<DataPoint, Ponca::SmoothWeightKernel<typename DataPoint::Scalar>>;
+
+  public:
+      using Scalar           = typename Base::Scalar;
+      using VectorType       = typename Base::VectorType;
+      using WeightReturnType = typename Base::WeightReturnType;
+
+      PONCA_MULTIARCH inline NormalAgreementFilter(const VectorType& p = VectorType::Zero(), Scalar t = Scalar(1),
+                                                   const VectorType& n = VectorType::Zero())
+          : Base(p, t), m_n(n)
+      {
+      }
+
+      PONCA_MULTIARCH inline WeightReturnType operator()(const DataPoint& q) const
+      {
+          WeightReturnType res = Base::operator()(q); // {weight, local coordinates}
+          if (q.normal().dot(m_n) < Scalar(0))
+              res.first = Scalar(0);
+          return res;
+      }
+
+  private:
+      VectorType m_n;
+  };
+
+  using Fit = Ponca::Basket<Point, NormalAgreementFilter<Point>, Ponca::OrientedSphereFit>;
+  Fit fit;
+  fit.setNeighborFilter({p, t, n});
+  \endcode
+
+  \note The derivatives of the weight (`spacedw`, ...) are inherited from Ponca::DistWeightFilter: they ignore the new
+  criterion, which is acceptable as long as the weight is piecewise constant with respect to the evaluation position.
+
+  \section fitting_newestimator Defining a new computational object
+
+  The goal of the Fitting module is to provide lightweight, fast and generic algorithms for point cloud processing. It
+  mostly focuses on local regression techniques, which are core components of surface reconstruction techniques
+  \cite Alexa:2001:Pss \cite Guennebaud:2007:APSS, geometric descriptors \cite Mellado:2012:GLS
+  \cite Lejemble:2021:stable and shape analysis techniques \cite lejemble:2020:persistence. Most of these techniques
+  share similar computations, and can be combined in several ways. For instance,
+  Ponca::NormalDerivativeWeingartenEstimator estimates curvatures from the spatial derivatives of a normal field, and
+  can be combined with any normal estimation technique providing these derivatives.
+
+  To combine these small computations without runtime overhead, the library relies on the Curiously Recurring
+  Template Pattern (CRTP). In contrast with dynamic polymorphism, the combination of the computational objects is
+  resolved and optimized when compiling the program, which in turn requires more memory and time at compile time.
+  Classes do not inherit from a base interface defining the API: they follow concepts (see \ref ponca_concepts).
+
+  \subsection crtpestimator Understanding the CRTP in Ponca
+
+  Ponca::Basket is the interface for all the computations. Its signature is:
+
+  \code
+  template <class P, class NF,
+            template <class, class, typename> class Ext0,
+            template <class, class, typename> class... Exts>
+  class Basket;
+  \endcode
+
+  The first two parameters are the point type and the neighbor filter used throughout the computation. The following
+  ones are the computational objects. Through type list unrolling, the basket inherits from all of them: each
+  computational object derives from the previous one in the list, the first one deriving from
+  Ponca::BasketUnitBase, which stores the neighbor filter, the number of neighbors, the sum of the weights and the
+  fit status. For instance, the basket of \ref example_cxx_basic_page,
+
+  \code
+  using Fit1 = Basket<MyPoint, WeightFunc, OrientedSphereFit, GLSParam>;
+  \endcode
+
+  defines the following class hierarchy:
+
+  \image html crtpexamplehierachy.svg
+
+  \note Some types are aliases that inject their dependencies in the hierarchy. For example,
+  Ponca::OrientedSphereFit is defined as `OrientedSphereFitImpl<MeanPosition<MeanNormal<AlgebraicSphere<T>>>>`
+  (template parameters omitted): Ponca::MeanPosition, Ponca::MeanNormal and Ponca::AlgebraicSphere appear in the
+  hierarchy although they were not explicitly listed by the user.
+
+  Since the basket inherits from all the computational objects, any of their public functions can be called on the
+  basket, as long as its name is not hidden by another class of the hierarchy. Inside a computational object, the
+  type `Base` refers to the parent class: `Base::m_uc` in Ponca::GLSParam refers to Ponca::AlgebraicSphere::m_uc,
+  whereas `Base::addLocalNeighbor` in Ponca::GLSParam refers to Ponca::OrientedSphereFitImpl::addLocalNeighbor, the
+  closest definition in the hierarchy.
+
+  To target a specific class of the hierarchy, each computational object provides a *cast function* returning the
+  basket seen as an instance of this class (see \ref fitting_cast):
+  \code
+  const auto& meanNormal = fit.meanNormal(); // the Ponca::MeanNormal part of the basket (non-const version available)
+  VectorType n = meanNormal.meanNormalVector();
+  \endcode
+
+  \subsection fitting_newestim Computational object API
+
+  \subsubsection fitting_newestimbase Minimal requirements
+
+  A computational object compatible with Ponca::Basket has the following structure:
+
+  \snippet concepts.hpp ComputationalObjectConcept
+
+  - The macro `PONCA_FITTING_DECLARE_DEFAULT_TYPES` (defined in `Ponca/src/Fitting/defines.h`) defines the `Base`
+    type (alias for `T`), as well as `Scalar`, `VectorType` and `NeighborFilter`. It opens a `public` section.
+  - The functions `init`, `addLocalNeighbor` and `finalize` must call their `Base` version (`Base::init()`,
+    `Base::addLocalNeighbor(...)`, `Base::finalize()`), usually first.
+  - `addLocalNeighbor` returns `void`, and receives the weight of the neighbor, its coordinates in the local frame of
+    the neighbor filter, and the neighbor itself (to access its other attributes, such as its normal).
+  - `finalize` returns the status of the fit, usually the one computed by the base classes, possibly downgraded
+    (e.g. to Ponca::UNDEFINED when the problem is degenerate).
+
+  For instance, the following object computes the weighted mean distance between the neighbors and the evaluation
+  position. As it relies on local coordinates being relative to the evaluation position, it requires a centered
+  neighborhood frame:
+  \code
+  template <class DataPoint, class _NFilter, typename T>
+      requires Ponca::HasLocalFrame<_NFilter>
+  class MeanDistance : public T
+  {
+      PONCA_FITTING_DECLARE_DEFAULT_TYPES
+
+  protected:
+      Scalar m_sumD{0}; // weighted sum of the distances
+
+  public:
+      PONCA_EXPLICIT_BASKET_CAST_OPERATORS(MeanDistance, meanDistance)
+
+      PONCA_MULTIARCH inline void init()
+      {
+          Base::init();
+          m_sumD = Scalar(0);
+      }
+
+      PONCA_MULTIARCH inline void addLocalNeighbor(Scalar w, const VectorType& localQ, const DataPoint& attributes)
+      {
+          Base::addLocalNeighbor(w, localQ, attributes);
+          m_sumD += w * localQ.norm();
+      }
+
+      PONCA_MULTIARCH inline Ponca::FIT_RESULT finalize() { return Base::finalize(); }
+
+      PONCA_MULTIARCH inline Scalar meanDistanceValue() const { return m_sumD / Base::getWeightSum(); }
+  };
+
+  using Fit = Ponca::Basket<Point, Filter, MeanDistance>;
+  \endcode
+
+  \note If a computational object is meant to be the first class of the hierarchy (i.e., it does not derive from
+  another computational object), it does not need the parameter `T`: Ponca::BasketUnitBase is always inserted first.
+
+  \subsubsection fitting_newcapabilities Requirements and capabilities
+
+  Aggregating small computational objects minimizes code duplication, and makes it easy to combine techniques. For
+  instance, Ponca::GLSParam can be combined with any fitting procedure that computes an algebraic sphere
+  (Ponca::SphereFit, Ponca::OrientedSphereFit, Ponca::UnorientedSphereFit).
+
+  To check that computational objects are combined correctly, %Ponca uses C++20 concepts: each class states what it
+  requires from the rest of the basket. The capability concepts are defined in `Ponca/src/Fitting/concepts.h` (see
+  \ref fittingreference_outputandcapabilities), and the concepts related to baskets, filters and points in
+  `Ponca/src/Fitting/Basket/concepts.h`, `Ponca/src/Fitting/Filters/concepts.h` and `Ponca/src/Common/concepts.h`.
+  For instance, Ponca::GLSParam is declared as:
+
+  \snippet gls.h example_requirements_usage
+
+  with the following requirement macro:
+
+  \snippet gls.h example_requirements
+
+  If the basket does not provide an algebraic sphere before Ponca::GLSParam, the compilation fails and the compiler
+  indicates which constraint is not satisfied. For instance, gcc emits:
+
+  \verbatim
+ponca/tests/src/test.cpp:192:9:   required from 'void callSubTests() [with Scalar = long double; int Dim = 3]'
+ponca/tests/src/test.cpp:252:5:   required from here
+ponca/Ponca/src/Fitting/Basket/basket.h:53:19: error: template constraint failure for 'template<class DataPoint, class _NFilter, class T>  requires  ProvidesAlgebraicSphere<T> class Ponca::GLSParam'
+   53 |             using type = Ext<P, NF, Aggregate>;
+      |                   ^~~~
+ponca/Ponca/src/Fitting/Basket/basket.h:53:19: note: constraints not satisfied
+  \endverbatim
+
+  The complete output is verbose, but precise: it tells exactly which expression of which requirement is invalid.
+  Classes do not declare which concepts they satisfy (apart from their documentation): concepts are checked
+  structurally.
+
+  \note The requirements offer a limited protection against combinations of classes providing the same capability:
+  two procedures fitting the same primitive compile, and are detected at runtime, when `finalize()` returns
+  Ponca::CONFLICT_ERROR_FOUND (see \ref fitting_multiprimitive). To support this mechanism, a procedure computing a
+  primitive must check that the primitive is not already valid (`isValid()`) before writing it.
+
+  \subsubsection fitting_cast Providing cast operators
+
+  Because of name hiding, the `Base` type cannot reach every function of every class of the hierarchy. Cast functions
+  solve this problem. They are declared with a macro, in a public section of the class:
+
+  \code
+  PONCA_EXPLICIT_BASKET_CAST_OPERATORS(ClassName, castName)
+  \endcode
+
+  where `ClassName` is the name of the class template and `castName` the name of the generated function (by
+  convention, the class name starting with a lowercase letter). The macro assumes that the template parameters are
+  named `DataPoint`, `_NFilter` and `T`. A class can declare several cast functions: it must declare the generic
+  cast functions required by the capability concepts it satisfies (e.g. `implicitPrimitive` and `projectionOperator`
+  for Ponca::ProvidesImplicitPrimitive). These names are given in \ref fittingreference_outputandcapabilities.
+
+  \subsection fitting_newdiff Differentiating a computational object (BasketDiff API)
+
+  Computational objects used in a Ponca::BasketDiff follow the same principle, with an additional template parameter
+  giving the differentiation type, and the basket to differentiate as first base class:
+
+  \snippet concepts.hpp ComputationalDerivativesConcept
+
+  - The first class of the derivative hierarchy is Ponca::BasketDiffUnitBase, which derives from the differentiated
+    basket, accumulates the derivatives of the weights (`m_dSumW`) and provides `isScaleDer()`, `isSpaceDer()` and
+    `derDimension()`.
+  - The macro `PONCA_FITTING_DECLARE_DEFAULT_DER_TYPES` defines `ScalarArray` and `VectorArray`, fixed-size arrays
+    whose size is the number of derivatives, laid out as described in \ref fitting_derivatives_layout.
+  - `addLocalNeighbor` receives the derivatives `dw` of the weight of the neighbor (`dw[0]` with respect to the scale
+    when `isScaleDer()`, followed by the `Dim` derivatives with respect to the evaluation position when
+    `isSpaceDer()`).
+  - Cast functions are declared with `PONCA_EXPLICIT_BASKET_CAST_OPERATORS_DER(ClassName, castName)`, which assumes
+    the template parameters `DataPoint`, `_NFilter`, `DiffType` and `T`.
+
+  Ponca::FitScaleDer and Ponca::FitSpaceDer are flags (see Ponca::DiffType), combined with `|` (Ponca::FitScaleSpaceDer
+  is their combination).
+
+  \section fitting_extending_gpu Keeping extensions GPU-compatible
+
+  To be usable in CUDA kernels (see \ref ponca_gpu_page), new classes must:
+  - declare all their functions with `PONCA_MULTIARCH`,
+  - avoid dynamic memory allocation and STL containers in device code,
+  - use the math functions through `PONCA_MULTIARCH_STD_MATH(sqrt)` (and similar), which selects the STL or CUDA
+    version of the function.
+ */
+} // namespace Ponca

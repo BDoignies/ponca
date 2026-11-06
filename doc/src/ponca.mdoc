@@ -9,67 +9,99 @@
 
   \section ponca_about_sec About Ponca
 
-  Ponca is a header only library coded in C++, and compatible with CUDA and SYCL. It is maintained by researchers in Computer
-  Graphics, and released under the MPL license. Source code is available at: https://github.com/poncateam/ponca
+  %Ponca (POiNt Cloud Analysis) is a header-only C++20 library for point cloud analysis and surface reconstruction,
+  compatible with CUDA and SYCL, and available in Python through the PyPonca binding. It is maintained by researchers
+  in Computer Graphics, and released under the Mozilla Public License 2.0. The source code is available at
+  https://github.com/poncateam/ponca.
 
-  Ponca provides a collection of techniques for Point Cloud Analysis that incorporate the latest innovations from CNRS and
-  INRIA research teams working in the field. It strives for efficiency and ease-of-use by focusing on low-level core
-  operators and key algorithms. The central goal of the library is to drastically reduce the time and efforts required
-  to turn a research paper into a ready-to-use solution, for both commercial and academic purposes.
+  %Ponca provides a collection of techniques for point cloud analysis that incorporate the latest innovations from
+  CNRS and INRIA research teams working in the field. It strives for efficiency and ease of use by focusing on low-level
+  core operators and key algorithms. The central goal of the library is to drastically reduce the time and effort
+  required to turn a research paper into a ready-to-use solution, for both commercial and academic purposes.
 
-  The library is still in its infancy and we're actively working on it to bring you the latest of our published research
-  techniques.
+  \section ponca_features_sec Features
 
-  \section ponca_instructions_sec Basic FAQs
+  - **Local fitting** of planes, lines, algebraic spheres and quadratic height fields on weighted neighborhoods, in
+    arbitrary dimension, from positions with or without (oriented or unoriented) normals.
+  - **Differential quantities**: normals, Growing Least Squares descriptors, curvature tensors (APSS, ASO, Monge patches,
+    Corrected Normal Current, ...), and the derivatives of the fits with respect to the scale and to the position.
+  - **Moving Least Squares** projection onto the smooth surface defined by a point cloud.
+  - **Spatial data structures**: kd-trees, k-nearest neighbor graphs and neighbor graphs, with nearest, k-nearest and
+    range queries.
+  - **Generic and extensible design**: no data structure is imposed on the client code, computations are assembled at
+    compile time, and the same code runs on the CPU, in CUDA and in SYCL kernels.
 
-  - <b> How do I get Ponca to work with my computer? </b><BR>
-  If by that you mean "How can I download and install your library?", then the best place to start is the \ref ponca_getting_started_page section, as you might have guessed from the onset.
+  \section ponca_doc_map_sec Documentation
 
-  - <b> What can I develop with Ponca? Do you have code examples? </b><BR>
-  I guess you're looking for a \ref user_manual_page, or even an \ref example_page page? This might give you enough suggestions to start experimenting with your own recipies.
+  - \subpage ponca_getting_started_page &mdash; requirements, installation and a first program.
+  - \subpage user_manual_page &mdash; how to use the modules of the library, and the Python binding.
+  - \subpage example_page &mdash; complete programs, in C++, CUDA, SYCL and Python.
+  - \subpage ponca_ecosystem_page &mdash; tools and libraries built on top of %Ponca.
+  - \subpage ponca_changelog &mdash; what changed between the releases.
+  - \ref citelist "Bibliography" &mdash; the scientific publications implemented in the library.
+  - <a href="annotated.html">C++ API reference</a> &mdash; the documentation of all the classes.
 
-  - <b> Where do these approaches come from originally?  </b><BR>
-  The Ponca library relies on published scientific papers that we have collected in the \link citelist.html Bibliography\endlink section of the documentation. These will prove useful if you want to dig into the implementation of operators and algorithms. If the Ponca library contributes to a project that leads to a scientific publication or a commercial or free software, all we ask is to tell us about it, or at least cite the project using the bibtex entry provided at the end of this page.
+  \section ponca_instructions_sec Frequently asked questions
 
-  - <b> What can I do if I get mashed in trouble? </b><BR>
-  If you get stuck or have a problem/bug using Ponca, open an issue on <a href="https://github.com/poncateam/ponca/issues" target="_blank">Github</a> for further assistance. Remember that the library is under development so we are pleased to get your feedback.
+  - <b>How do I install %Ponca?</b><br/>
+  %Ponca is header-only: see \ref ponca_getting_started_page.
 
-  - <b> What does "Ponca" mean, actually? </b><BR>
-  "Ponca" stands for POiNt Cloud Analysis. Currently, it provides fitting techniques and spatial queries accelerators (e.g. KdTree), to approximate sets of points by planes or spheres. Upcoming release should bring Moving Least Squares surfaces.
+  - <b>What can I develop with %Ponca? Are there code examples?</b><br/>
+  The \ref user_manual_page describes all the features of the library, and the \ref example_page page lists complete
+  programs.
 
-  - <b> How is Ponca licensed? </b><BR>
-  The source code of the library is licensed under the Mozilla Public License (MPL), v. 2.0. Its main advantage is to grant inclusion of template files as long as the source code itself is not modified. For more details, a copy of the MPL can be found at http://mozilla.org/MPL/2.0/ .
+  - <b>Do I need to convert my data to use %Ponca?</b><br/>
+  No: %Ponca accesses your points through a lightweight type that you define, which can directly wrap your buffers.
+  See \ref ponca_points.
 
+  - <b>Where do these approaches come from?</b><br/>
+  %Ponca implements published scientific papers, listed in the \ref citelist "Bibliography". They are useful to
+  understand the implemented operators and algorithms. If %Ponca contributes to a project that leads to a scientific
+  publication or to a commercial or free software, all we ask is to tell us about it, or at least to cite the project
+  using the BibTeX entry given in \ref ponca_credits_subsection_citation.
 
+  - <b>What can I do if I get stuck?</b><br/>
+  If you get stuck or find a bug, open an issue on <a href="https://github.com/poncateam/ponca/issues"
+  target="_blank">GitHub</a>. The library is under active development, and we are pleased to get your feedback.
 
+  - <b>What does "Ponca" mean?</b><br/>
+  "Ponca" stands for POiNt Cloud Analysis.
+
+  - <b>How is %Ponca licensed?</b><br/>
+  The source code of the library is licensed under the Mozilla Public License (MPL), v. 2.0. Its main advantage is to
+  allow the inclusion of template files as long as the source code itself is not modified. A copy of the MPL can be
+  found at http://mozilla.org/MPL/2.0/.
 
   \section ponca_credits_sec Credits
 
   \subsection ponca_credits_subsection_crew Developers and contributors
-  Main contributors
-  - <b> Nicolas Mellado </b>: conception, implementation, documentation and examples <br/>
-  - <b> Thibault Lejemble </b>: implementation of several fitting primitives, differential estimators, and original
-  version of the Spatial Partitioning code<br/>
-  - <b> Auberval Florian </b> : implementation of the CNC fit, update of the Spatial Partitioning module for CUDA and
-  other API changes between versions 1.4 and 2.<br/>
 
-  Other contributors
-  - <b> Fitting module </b>: Aniket Agarwalla, Nicolas Dupont, Carl Delrieu, Dorian Verge, Jules Vidal, Antoine Lafon, Anais Bains
-  - <b> SpatialPartitioning module </b>: Amael Marquez, Matthieu Gomiero, Dorian Ferreira, Sacha Vincent
+  Main contributors:
+  - <b>Nicolas Mellado</b>: conception, implementation, documentation and examples
+  - <b>Thibault Lejemble</b>: implementation of several fitting primitives, differential estimators, and original
+    version of the Spatial Partitioning code
+  - <b>Auberval Florian</b>: implementation of the CNC fit, update of the Spatial Partitioning module for CUDA and
+    other API changes between versions 1.4 and 2
+
+  Other contributors:
+  - <b>Fitting module</b>: Aniket Agarwalla, Nicolas Dupont, Carl Delrieu, Dorian Verge, Jules Vidal, Antoine Lafon,
+    Anais Bains
+  - <b>SpatialPartitioning module</b>: Amael Marquez, Matthieu Gomiero, Dorian Ferreira, Sacha Vincent
 
   \subsection ponca_credits_subsection_grenaille Patate/Grenaille crew and contributors
-  Ponca is a fork of Patate, module Grenaille, which is now deprecated, and which was developed by:
-  - <b> Nicolas Mellado </b>: conception, implementation and examples <br/>
-  - <b> Gael Guennebaud </b>: conception and implementation <br/>
-  - <b> Pascal Barla </b>: conception and documentation <br/>
-  - <b> Patrick Reuter </b>: conception and documentation <br/>
-  - <b> Thibault Lejemble </b>: implementation <br/>
-  - <b> Gautier Ciaudo </b>: testing, documentation, refactoring and examples <br/>
-  - <b> Noam Kremen </b>: implementation<br/>
+
+  %Ponca is a fork of Patate, module Grenaille, which is now deprecated, and which was developed by:
+  - <b>Nicolas Mellado</b>: conception, implementation and examples
+  - <b>Gael Guennebaud</b>: conception and implementation
+  - <b>Pascal Barla</b>: conception and documentation
+  - <b>Patrick Reuter</b>: conception and documentation
+  - <b>Thibault Lejemble</b>: implementation
+  - <b>Gautier Ciaudo</b>: testing, documentation, refactoring and examples
+  - <b>Noam Kremen</b>: implementation
 
   \subsection ponca_credits_subsection_citation Citation
 
-  If you use our library, please cite it using the following bibtex entry:
+  If you use our library, please cite it using the following BibTeX entry:
   \verbatim
     @MISC{Ponca,
     author = {Nicolas Mellado and Thibault Lejemble and Ga\"{e}l Guennebaud and Pascal Barla and others},
@@ -81,7 +113,6 @@
 
   \subsection ponca_credits_subsection_users Users
 
-  - <b> Inria </b> - Manao Team <br/>
-  - <b> IRIT </b> - STORM Team <br/>
-
+  - <b>Inria</b> - Manao Team
+  - <b>IRIT</b> - STORM Team
 */

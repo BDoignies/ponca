@@ -6,10 +6,26 @@
 
 
 /*!
-  \page example_cxx_basic_page Ponca basic CPU
+  \page example_cxx_basic_page Sphere fitting and GLS on the CPU
 
-  This is an example of how to use Ponca to compute
-  the GLS Geometric variation on random data.
+  This example fits algebraic spheres on a random noisy unit sphere, at the position of its first point, with several
+  methods:
+  - Ponca::OrientedSphereFit (APSS), with the Growing Least Squares parameters (Ponca::GLSParam),
+  - Ponca::UnorientedSphereFit, which ignores the orientation of the normals,
+  - Ponca::OrientedSphereFit with space derivatives (Ponca::BasketDiff), which also provides principal curvatures,
+  - Ponca::SphereFit, which only uses the positions.
+
+  The neighbors are collected with a Ponca::KdTreeDense, and added one by one to the fits (`init`, `addNeighbor`,
+  `finalize`). For each method, the program prints the center and radius of the sphere, the value and gradient of the
+  scalar field, the GLS parameters and the projection of the evaluation position.
+
+  Build and run:
+  \code{.sh}
+  cmake --build build --target ponca_basic_cpu
+  ./build/examples/cpp/ponca_basic_cpu
+  \endcode
+
+  See also \ref fitting_firstSteps and \ref fitting_derivatives.
 
   \include cpp/ponca_basic_cpu.cpp
 */

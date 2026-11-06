@@ -6,9 +6,19 @@
 
 
 /*!
-  \page example_cxx_neighbor_search Ponca::KdTree neighbor searches
+  \page example_cxx_neighbor_search Neighbor searches with kd-trees and k-NN graphs
 
-  This is an example of how to use Ponca::KdTree to perform nearest, k-nearest and range neighbor search.
+  This example builds a Ponca::KdTreeDense and a Ponca::KdTreeSparse (over half of the points) from a random point
+  cloud, and a Ponca::KnnGraph from the dense tree. It then performs nearest, k-nearest and range searches, from point
+  indices and from arbitrary positions, and shows how to reuse query objects.
+
+  Build and run:
+  \code{.sh}
+  cmake --build build --target ponca_neighbor_search
+  ./build/examples/cpp/ponca_neighbor_search
+  \endcode
+
+  See also \ref spatialpartitioning.
 
   \include cpp/ponca_neighbor_search.cpp
 */

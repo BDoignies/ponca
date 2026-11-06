@@ -6,34 +6,33 @@
 
 
 /*!
-  \page example_python_ssc_page Screen Space Curvature using Cuda and Python
+  \page example_python_ssc_page Screen-space curvature using CUDA and Python
 
   \section pyssgl_intro_sec Introduction
 
-  This is an example that use Ponca to compute Screen Space Curvature in
-  python using Cuda.
+  This example computes the screen-space curvature \cite Mellado:2013:SSC of images storing positions and normals,
+  as \ref example_cu_ssc_page, but the CUDA kernel is compiled to PTX and launched from Python with PyCUDA.
+
+  \note To use %Ponca from Python without writing CUDA code, see the binding \ref pyponca.
 
   \subsection pyssgl_intro_sec_dep_subsec Installation and usage
-  This example requires the following python packages:
-   - pycuda
-   - matplotlib
 
-  as well as a working cuda setup (tested with 5.0 and 7.0), and the lastest version of <strong>eigen dev branch</strong> which manage nvcc compiler.
-
-  To compile and run the example, call
-  \code
-  cd build && make ssgls_py
-  cd examples/python && python ssgls.py -s 10 -p ./data/ssgls_sample_wc.png -n ./data/ssgls_sample_normal.png
+  This example requires CUDA (12 or later) and the following Python packages: `pycuda`, `numpy`, `pillow` and
+  `matplotlib`. The target `ssgls_py` compiles the kernel to `ssgls.ptx`, and copies it with the script and the input
+  data in the build folder:
+  \code{.sh}
+  cmake --build build --target ssgls_py
+  cd build/examples/python
+  python ssgls.py -s 10 -p ./data/ssgls_sample_wc.png -n ./data/ssgls_sample_normal.png
   \endcode
 
-  The script will load the input pictures and compute the curvature for
-  a screenspace neighborhood 10x10 pixels.
-  \image html examples/ssgls_input.png "Screen-Space Curvature typical input. Left: world coordinates. Right: remapped normal vectors"
+  The script loads the input pictures and computes the curvature for a screen-space neighborhood of radius 10 pixels.
+  \image html examples/ssgls_input.png "Screen-space curvature, typical input. Left: world coordinates. Right: remapped normal vectors"
 
-  It will generate this picture
-  \image html examples/ssgls_result1.png "Screen-Space Curvature estimation"
+  It generates this picture:
+  \image html examples/ssgls_result1.png "Screen-space curvature estimation"
 
-  as well as the following trace on the standard output
+  as well as a trace on the standard output, for instance:
   \code
   Load CUDA kernel ........... DONE in 0.024 seconds.
   Init Input data ............ DONE in 13.390 seconds.
@@ -51,41 +50,31 @@
   #######################################
   \endcode
 
-  \note Don't worry about the important execution time, this example uses a naive
-  and inefficient approach to represent queries with numpy, making the
-  total process really slow. However, the real computation time in cuda is
-  indicated by the last line of the timing trace. Note that we do not use any
-  re-sampling technique, that is why this step is directly related to the scale
-  parameter.
+  \note The preparation of the queries uses a naive and inefficient representation with numpy, which makes the total
+  process slow. The computation time on the GPU is given by the last line of the timing trace. No re-sampling is
+  performed, so this time is directly related to the scale parameter.
 
+  \section pyssgl_cuda_sec CUDA programming
 
-  \section pyssgl_cuda_sec Cuda programming
+  The technical details related to the CUDA and Python binding for screen-space curvature estimation are as follows.
 
-  Here are the technical details related to the cuda and python biding for
-  screen-space curvature estimation.
-
-  \subsection pyssgl_cuda_mypoint_sec Define fitting data structure
+  \subsection pyssgl_cuda_mypoint_sec Fitting data structure
   \snippet python/ssgls.cu mypoint
 
-
-  \subsection pyssgl_cuda_weight_sec Define weighting functions
+  \subsection pyssgl_cuda_weight_sec Weighting function
   \snippet python/ssgls.cu w_def
 
-  \subsection pyssgl_cuda_fit_sec Define fitting primitive
+  \subsection pyssgl_cuda_fit_sec Fitting primitive
   \snippet python/ssgls.cu fit_def
-
 
   \subsection pyssgl_cuda_kernel_sec Kernel
   \snippet python/ssgls.cu kernel
 
   \subsection pyssgl_cuda_access_sec Memory access
-  We use numpy to format the input data, filled by dimension (in object space)
-  and then by the screen-space coordinates:
+  The input data are formatted with numpy, by dimension (in object space), then by screen-space coordinates:
   \snippet python/ssgls.cu data_acces
 
-
   \section pyssgl_python_sec Python script
-  We use numpy to format input data.
 
   \include python/ssgls.py
  */

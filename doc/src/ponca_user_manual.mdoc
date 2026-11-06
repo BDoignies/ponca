@@ -1,59 +1,90 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 namespace Ponca
 {
 /*!
-  \page user_manual_page User Manual
+  \page user_manual_page User manual
 
-This section provides a quick tour of currently available modules in Ponca.
+  This manual describes how to use %Ponca. It assumes that the library is installed, see
+  \ref ponca_getting_started_page.
 
-\note Must read: \subpage ponca_points for an overview and an explanation of the concepts used all across the library
-(and why we need them).
-<!-- Each entry provides a brief description and links to its user manual, examples and references. -->
+  \section user_manual_modules Modules
 
-<table class="noBorder">
-<tr>
-<td  colspan="1" class="cellAlignCenter">
-<b>Fitting</b>
-<div class="dessin"><img src="images/grenaille.png" width="180" height="200" alt=""/></div>
-<td>
+  <table class="noBorder">
+  <tr>
+    <td class="cellAlignCenter"><b>Fitting</b>
+      <div class="dessin"><img src="images/grenaille.png" width="180" height="200" alt="Fitting module"/></div>
+    </td>
+    <td>
+      <p>Local fitting of primitives (planes, lines, spheres, quadratic height fields) on weighted neighborhoods,
+      in arbitrary dimension, and the geometric properties derived from them: normals, projections, Growing Least
+      Squares descriptors, curvature tensors, Moving Least Squares surfaces, and their derivatives with respect to the
+      scale and to the position. The module is generic and extensible: computations are assembled at compile time,
+      and new ones can be added.</p>
+      <p><b>Main contributors:</b> <i>Nicolas Mellado, Thibault Lejemble</i></p>
+      <p>[\ref fitting "User manual"] [\ref fittingreference "Reference"] [\ref fitting_curvature_page "Curvature estimation"]</p>
+    </td>
+  </tr>
+  <tr>
+    <td class="cellAlignCenter"><b>Spatial Partitioning</b>
+      <div class="dessin"><img src="images/spatialpartitioning.svg" width="180" height="200" alt="Spatial Partitioning module"/></div>
+    </td>
+    <td>
+      <p>Spatial data structures for proximity queries: kd-trees, k-nearest neighbor graphs and neighbor graphs,
+      with nearest, k-nearest and range queries that can also be performed in GPU kernels.</p>
+      <p>Thumbnail provided by Basile Fraboni (<a href="https://github.com/bfraboni/vptree-draw" target="_blank">VPTree-Draw</a>).</p>
+      <p><b>Main contributors:</b> <i>Thibault Lejemble, Gaël Guennebaud, Nicolas Mellado, Matthieu Gomiero, Dorian Ferreira, Sacha Vincent</i></p>
+      <p>[\ref spatialpartitioning "User manual"]</p>
+    </td>
+  </tr>
+  <tr>
+    <td class="cellAlignCenter"><b>Common</b>
+      <div class="dessin"><img src="images/common.png" width="180" height="200" alt="Common module"/></div>
+    </td>
+    <td>
+      <p>General purpose classes and methods used by the other modules: point types, point generation, containers
+      usable on GPUs, multi-architecture macros and assertions.</p>
+      <p>Thumbnail provided by Basile Fraboni (<a href="https://github.com/bfraboni/vptree-draw" target="_blank">VPTree-Draw</a>).</p>
+      <p><b>Main contributors:</b> <i>Thibault Lejemble, Gaël Guennebaud</i></p>
+      <p>[\ref common "User manual"]</p>
+    </td>
+  </tr>
+  <tr>
+    <td class="cellAlignCenter"><b>PyPonca</b></td>
+    <td>
+      <p>A Python binding of %Ponca, compatible with NumPy, PyTorch, CuPy and any library supporting DLPack, running on
+      the CPU or on CUDA devices.</p>
+      <p>[\ref pyponca "User manual"]</p>
+    </td>
+  </tr>
+  </table>
 
-This module provides efficient methods for the fitting and analysis of point-clouds in arbitrary dimensions. Sounds a bit abstract, and indeed, it is templated in every corner of the code.
-It's worth the effort though, as it may be used for varied purposes such as curvature computation, surface reconstruction, scale-space analysis, and much more!
-The good news is that the module is quite easy to use and extensible thanks to its programming interface that allows you to customize it to your needs.
+  \section user_manual_contents Contents
 
-<b>Main contributors:</b> <i> Nicolas Mellado, Thibault Lejemble </i>
+  The manual is organized as follows:
+  - \subpage ponca_points &mdash; how %Ponca accesses your data, and the point types it provides. **Read this first.**
+  - \subpage fitting &mdash; fitting primitives on neighborhoods, reading the results, MLS projection, derivatives, and
+    the pages dedicated to curvature estimation and to the definition of new computations.
+  - \subpage fittingreference &mdash; the list of fitting procedures, capabilities, filters, kernels and status codes.
+  - \subpage spatialpartitioning &mdash; kd-trees, neighbor graphs and queries.
+  - \subpage common &mdash; point types, containers, macros and assertions shared by all the modules.
+  - \subpage ponca_gpu_page &mdash; running %Ponca in CUDA and SYCL kernels.
+  - \subpage ponca_concepts &mdash; the requirements on the types given to %Ponca, and the C++20 concepts used by the
+    library.
+  - \subpage pyponca &mdash; the Python binding.
 
-<span style="padding-right: 20px;">[\subpage fitting "User Manual"]</span>
-<span style="padding-right: 20px;">[\subpage fittingreference "Reference Manual"]</span>
+  \section user_manual_paths Where to start
 
-<tr><td  colspan="2" class="cellAlignCenter topbar"><tr>
-<td  colspan="1" class="cellAlignCenter">
-<b>Spatial Partitioning</b>
-<div class="dessin"><img src="images/spatialpartitioning.svg" width="180" height="200" alt=""/></div>
-<td>
-<p>This module provides spatial data structures for proximity queries.</p>
-<p>Thumbnail provided by Basile Fraboni (<a href="https://github.com/bfraboni/vptree-draw" target="_blank">VPTree-Draw</a>).</p>
-<b>Main contributors:</b> <i> Thibault Lejemble, Gaël Guennebaud, Nicolas Mellado, Matthieu Gomiero, Dorian Ferreira, Sacha Vincent</i>
-
-<span style="padding-right: 20px;">[\subpage spatialpartitioning "User Manual"]</span>
-
-<tr><td  colspan="2" class="cellAlignCenter topbar"><tr>
-<td  colspan="1" class="cellAlignCenter">
-<b>Common</b>
-<div class="dessin"><img src="images/common.png" width="180" height="200" alt=""/></div>
-<td>
-<p>This module provides general purpose classes and methods used in other modules.</p>
-<p>Thumbnail provided by Basile Fraboni (<a href="https://github.com/bfraboni/vptree-draw" target="_blank">VPTree-Draw</a>).</p>
-<b>Main contributors:</b> <i> Thibault Lejemble, Gaël Guennebaud</i>
-
-
-<tr><td  colspan="2" class="cellAlignCenter topbar"><tr>
-<td  colspan="1" class="cellAlignCenter">
-<b>PyPonca</b>
-<div class="dessin"><img src="images/common.png" width="180" height="200" alt=""/></div>
-<td>
-<p>A python binding of ponca</p>
-<span style="padding-right: 20px;">[\subpage pyponca "PyPonca"]</span>
-</table>
-
+  - *Estimating normals or curvatures of a point cloud*: \ref ponca_points, then \ref fitting_firstSteps,
+    \ref spatialpartitioning_kdtree_usage and \ref fitting_curvature_page.
+  - *Projecting points onto a smooth surface defined by a point cloud*: \ref fitting_firstSteps, then
+    \ref evaluation_schemes.
+  - *Multi-scale analysis*: \ref fitting_neighborhoods_scale and \ref fitting_derivatives.
+  - *Integrating %Ponca in an existing code base without copying data*: \ref ponca_points_binding.
+  - *Implementing a new method*: \ref fitting_extending_page and \ref ponca_concepts.
  */
- }
+} // namespace Ponca

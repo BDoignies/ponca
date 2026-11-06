@@ -1,419 +1,445 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 namespace Ponca
 {
 /*!
-  \page fitting Fitting Module: User Manual
-
-  <center>[\ref user_manual_page "Go back to user manual"]</center>
-  <center>[\ref fitting_concepts "Go to concept page"]</center>
+  \page fitting Fitting module: user manual
 
   \tableofcontents
 
   \section fitting_intro Introduction
 
-  The fitting module is dedicated to the smooth fitting of point clouds and extraction of useful geometric properties.
-  \ref figure1 "Figure 1(a)" shows a typical example in 2D: we reconstruct a potential function (shown in fake colors) from a few 2D points equipped with normals;
-  then the 0-isoline of this potential gives us an implicit curve (in orange) from which we can readily extract further properties like curvature.
-  A great benefit of this implicit technique \cite Guennebaud:2007:APSS is that it works in arbitrary dimensions: Figures 1(b-c) show how we reconstruct an implicit 3D surface with the same approach, starting from a 3D point cloud.
-  Working with meshes then simply consists of only considering their vertices.
+  The Fitting module estimates local geometric properties of point clouds. Given an evaluation position
+  \f$\mathbf{p}\f$ and a scale \f$t\f$, it fits a simple *primitive* (plane, line, sphere, quadratic height
+  field, ...) to the neighbors of \f$\mathbf{p}\f$, each neighbor being weighted according to its distance to
+  \f$\mathbf{p}\f$. The fitted primitive then answers geometric questions: normal vector, distance to the underlying
+  surface, projection onto it, curvatures, and how these quantities vary when \f$\mathbf{p}\f$ or \f$t\f$ change.
+
+  \ref figure1 "Figure 1(a)" shows a typical example in 2D: a potential function (in false colors) is reconstructed
+  from a few 2D points equipped with normals; the 0-isoline of this potential is an implicit curve (in orange) from
+  which further properties, such as the curvature, are extracted. The approach works in arbitrary dimension
+  \cite Guennebaud:2007:APSS. Figures 1(b-c) show an implicit 3D surface reconstructed in the same way from a 3D point
+  cloud. Meshes can be processed by considering their vertices only.
 
   \anchor figure1
-  \image html interpolation.png "Figure 1: (a) An implicit 2D curve fit to a 2D point cloud. (b) A 3D point cloud shown with splats. (c) An implicit 3D surface reconstructed from (b)."
+  \image html interpolation.png "Figure 1: (a) An implicit 2D curve fitted to a 2D point cloud. (b) A 3D point cloud shown with splats. (c) An implicit 3D surface reconstructed from (b)."
 
-  This is just the tip of the iceberg though, as we also provide methods for dealing with points equipped with non-oriented normals \cite Chen:2013:NOMG, techniques to analyze
-  points clouds in scale-space to discover salient structures \cite Mellado:2012:GLS, methods to compute multi-scale principal curvatures \cite Mellado:2013:SSC and methods to compute surface variation using a plane instead of a sphere for the fitting \cite Pauly:2002:PSSimplification.
-  
-  In the following, we focus on a basic use of the module, and detail how to:
-   - create and use a fitting method
-   - obtain the derivatives of fitting result
-   - extend every part of the computationnal pipeline
-   - run the code on a CUDA environment
+  The module provides:
+  - the fitting of planes, lines, algebraic spheres (from points or oriented points \cite Guennebaud:2007:APSS, or
+    from non-oriented points \cite Chen:2013:NOMG) and quadratic height fields (Monge patches),
+  - descriptors computed from these primitives: surface variation and covariance features
+    \cite Pauly:2002:PSSimplification \cite Guinard:2017, Growing Least Squares parameters \cite Mellado:2012:GLS,
+    curvature tensors \cite Lejemble:2021:stable, Corrected Normal Current curvatures \cite pointCloudCNC-sgp23,
+  - the derivatives of these quantities with respect to the scale and to the evaluation position,
+  - a Moving Least Squares (MLS) projection operator \cite Alexa:2004:projection,
+  - all of this in arbitrary dimension for most methods, on the CPU or on GPUs (CUDA, SYCL).
 
-  As a prerequisite, please read \ref ponca_points in order to define the points on which the computation will be performed. 
-  For an exhaustive list of available methods, pleas read: \ref fittingreference.
+  This page explains how to use the module. The complete list of methods and of their outputs is given in the
+  \ref fittingreference, curvature estimation is detailed in \ref fitting_curvature_page, and the definition of new
+  computations in \ref fitting_extending_page. Before reading further, make sure you know how to describe your data,
+  see \ref ponca_points.
 
-  \section fitting_firstSteps First Steps
+  \section fitting_firstSteps First steps
 
-  \subsection fitting_codeStructure Include directives
-  The Fitting module defines operators that rely on no data structure and work both with CUDA and C++.
-  These core operators implement atomic scientific contributions that are agnostic of the host application.
-  If you want to use the Fitting module, just include its header:
+  \subsection fitting_codeStructure Include directive
+
+  The Fitting module is header-only, works on the CPU and in CUDA kernels, and depends only on Eigen. Include its
+  header:
   \code
-#include "Ponca/Fitting"
+  #include <Ponca/Fitting>
+  \endcode
+  or `<Ponca/Ponca>` to include all the modules.
+
+  \subsection fitting_Define Definition of the fitting object
+
+  A fitting object is a specialization of the class template Ponca::Basket:
+  \code
+  Basket<Point, NeighborFilter, FittingProcedure, Extensions...>
   \endcode
 
-  \subsection fitting_Define Definition of the Fitting object
-  
-  The Fitting Object is what Two template classes must be specialized to configure computations.
+  1. `Point` is the point type (see \ref ponca_points), for instance:
+     \snippet basket.cpp SpecializedPointType
+  2. `NeighborFilter` defines how the neighbors are weighted. Most of the time, it is a Ponca::DistWeightFilter: a
+     neighbor \f$\mathbf{q}\f$ is given the weight \f$\phi(\|\mathbf{q}-\mathbf{p}\| / t)\f$, where \f$\phi\f$ is a
+     weight kernel, here \f$\phi(x) = (x^2-1)^2\f$ (Ponca::SmoothWeightKernel), see
+     \ref figure2 "Figure 2(a)":
+     \snippet basket.cpp NeighborFilter
+  3. `FittingProcedure` defines the primitive and how it is fitted. Here, Ponca::OrientedSphereFit
+     \cite Guennebaud:2007:APSS fits an algebraic sphere (Ponca::AlgebraicSphere) to points equipped with normals:
+     \snippet basket.cpp FitType
+  4. Optional extensions add computations performed on top of the primitive. For instance, Ponca::GLSParam
+     \cite Mellado:2012:GLS computes the Growing Least Squares parameters of the fitted sphere:
+     \code
+     using Fit = Basket<Point, NeighborFilter, OrientedSphereFit, GLSParam>;
+     \endcode
 
-  1. The first step consists in specifying a weighting function: it defines how neighbor samples will contribute to the fit, as illustrated in \ref figure2 "Figure 2(a)" in 2D.
-  In this example, we choose a weight based on the Euclidean distance using Ponca::DistWeightFilter, remapped through a bisquare kernel defined in Ponca::SmoothWeightKernel:
-  \snippet basket.cpp NeighborFilter
+  The available filters are described in \ref fitting_neighborhoods, and the fitting procedures in
+  \ref fitting_primitives.
 
-  2. The second step identifies a complete fitting procedure through the specialization of a Ponca::Basket.
-  In our example, we want to apply an Ponca::OrientedSphereFit to input data points, which outputs an Ponca::AlgebraicSphere by default.
-  This leads to the following specialization:
-  \snippet basket.cpp FitType
-  
-  \see \ref fittingreference_primitiveoverview 
-  \see \ref fitting_kernel 
+  \subsection fitting_Fitting Fitting process
 
-  \subsection fitting_Fitting Fitting Process
-
-  At this point, most of the hard job has already been performed.
-  All we have to do now is to provide an instance of the weight function, where \f$t\f$ refers to the neighborhood size, and initiate the fit at an arbitrary position \f$\mathbf{p}\f$.
-  In this example we traverse a simple array, and samples outside of the neighborhood are automatically ignored by the weighting function.
-  Once all neighbors have been incorporated, the fit is performed and results stored in the specialized Basket object.
+  The neighbor filter is set first, from the evaluation position \f$\mathbf{p}\f$ and the scale \f$t\f$. The
+  neighbors are then given to the fitting object, which computes the primitive:
   \snippet basket.cpp Fit Compute
 
+  `compute(container)` (or `compute(begin, end)` with iterators) visits all the points of the container: points
+  farther than \f$t\f$ get a null weight and are ignored. On large point clouds, it is much more efficient to collect
+  the neighbors first with a spatial data structure (see \ref spatialpartitioning), and to give their indices to
+  `computeWithIds`:
+  \snippet basket.cpp Fit computeWithIds
+
+  \note The query and the neighbor filter are independent objects: make sure that they use the same position and
+  radius. Points returned by the query but farther than \f$t\f$ are ignored by the filter; points that are not returned
+  by the query are never considered.
+
+  Internally, `compute` and `computeWithIds` call `init()`, then `addNeighbor()` for each point, then `finalize()`,
+  and repeat these steps when the method needs several passes over the neighborhood (see \ref fitting_custom).
+
   \subsection fitting_Checkstatus Check fitting status
-  After calling `finalize` or `compute`, it is recommended to test the return state of the `Fit` object before using it:
+
+  `compute`, `computeWithIds` and `finalize` return a Ponca::FIT_RESULT, which can also be queried later with
+  `getCurrentState()`, `isReady()` and `isStable()`. Always check it before using the results:
+
+  | Value                       | `isReady()` | Meaning                                                    | Typical cause |
+  |-----------------------------|-------------|------------------------------------------------------------|---------------|
+  | Ponca::STABLE               | yes         | the fit is ready to use                                    |               |
+  | Ponca::UNSTABLE             | yes         | the fit is ready to use, but considered unreliable         | sphere fits with fewer than \f$2\times\f$`Dim` neighbors |
+  | Ponca::UNDEFINED            | no          | the fit failed, its results are meaningless (possibly NaN) | no neighbor with a positive weight, fewer than `Dim` neighbors for covariance and sphere fits, solver failure, degenerate configuration |
+  | Ponca::NEED_OTHER_PASS      | no          | another pass over the neighbors is required                | multi-pass methods (Monge patches) when neighbors are added manually |
+  | Ponca::CONFLICT_ERROR_FOUND | no          | ill-formed basket                                          | two procedures computed the same primitive, see \ref fitting_multiprimitive |
 
   \code
-  FIT_RESULT eResult = fit.compute(vecs.begin(), vecs.end()); // or eResult = fit.finalize();
-  if(eResult == STABLE)                                       // or fit.isStable()
-        //do your things...
+  Ponca::FIT_RESULT res = fit.compute(points);
+  if (res == Ponca::STABLE) // equivalent to fit.isStable()
+  {
+      // use the results
+  }
+  std::cout << fit.getNumNeighbors() << " neighbors, sum of the weights: " << fit.getWeightSum() << std::endl;
   \endcode
 
-  \warning You should avoid data of very low (i.e., 1 should be a significant value) or very high (e.g., georeferenced coordinates) magnitude to get good results; thus global rescaling might be necessary.
-
-  \subsection fitting_outputs  Basic Outputs
+  \subsection fitting_outputs Basic outputs
 
   \anchor figure2
-  \image html gls.png "Figure 2. (a) Fitting a 2D point cloud of positions and normals at a point p (in red) requires to define a weight function of size t (in green). (b) This results in an implicit scalar field (in fake colors), from which parameters of a local spherical surface can be extracted: an offset tau, a normal eta and a curvature kappa."
+  \image html gls.png "Figure 2. (a) Fitting a 2D point cloud of positions and normals at a point p (in red) requires to define a weight function of size t (in green). (b) This results in an implicit scalar field (in false colors), from which parameters of a local spherical surface can be extracted: an offset tau, a normal eta and a curvature kappa."
 
-
-  Now that you have performed fitting, you may use its outputs in a number of ways (see \ref figure2 "Figure 2(b)" for an illustration in 2D).
-
-
-  You may directly access generic properties of the fitted \ref PrimitiveBase "Primitive":
+  A fitted basket gives access to the functions of all the classes it aggregates. For the basket defined above:
   \code
-  cout << "Value of the scalar field at the initial point: " << p.transpose()
-       << " is equal to " << fit.potential(p) << endl;
-  cout << "Its gradient is equal to: " << fit.primitiveGradient(p).transpose() << endl;
-  \endcode
-  This generates the following output:
-  \code
-  Value of the scalar field at the initial point: 0 0 0 is equal to -0.501162
-  Its gradient is equal to:   0.00016028  0.000178782 -0.000384989
-  \endcode
+  using Point      = Ponca::PointPositionNormal<double, 3>;
+  using VectorType = Point::VectorType;
+  using Filter     = Ponca::DistWeightFilter<Point, Ponca::SmoothWeightKernel<double>>;
+  using Fit        = Ponca::Basket<Point, Filter, Ponca::OrientedSphereFit, Ponca::GLSParam>;
 
-  You may rather access properties of the fitted sphere (the 0-isosurface of the fitted scalar field), as defined in AlgebraicSphere :
-  \code
-  cout << "Center: [" << fit.center().transpose() << "] ;  radius: " << fit.radius() << endl;
-  cout << "The initial point " << p.transpose()              << endl
-       << "Is projected at   " << fit.project(p).transpose() << endl;
-  \endcode
-  You will obtain:
-  \code
-  Center: [-0.000160652 -0.000179197  0.000385884] ;  radius: 1.00232
-  The initial point 0 0 0
-  Is projected at    0.353911  0.394765 -0.850088
+  Fit fit;
+  fit.setNeighborFilter({p, t});
+  if (fit.compute(points) == Ponca::STABLE)
+  {
+      // Implicit primitive: the scalar field and its zero isosurface
+      double     f = fit.potential(q);         // value of the scalar field at q
+      VectorType g = fit.primitiveGradient(q); // gradient of the scalar field at q (not normalized)
+      VectorType x = fit.project(q);           // projection of q onto the fitted surface
+
+      // Ponca::AlgebraicSphere
+      VectorType c = fit.center();
+      double     r = fit.radius();
+
+      // Ponca::GLSParam: offset, normal and curvature at the evaluation position
+      double     tau   = fit.tau();
+      VectorType eta   = fit.eta();
+      double     kappa = fit.kappa();
+  }
   \endcode
 
-  \see \ref fittingreference_outputandcapabilities for information about outputs of Fitting objects.
+  - All the positions given to and returned by these functions are expressed in the coordinate system of the point
+    cloud (see \ref fitting_frames).
+  - Implicit primitives define a scalar field whose zero isosurface is the fitted surface. Its sign may be meaningless:
+    `fit.isSigned()` tells whether the method can orient the field (e.g. covariance plane fits cannot, see
+    \ref fittingreference_primitiveoverview).
+  - \ref fittingreference_outputandcapabilities lists the functions available for each method.
 
-  \section evaluation_schemes Evaluation schemes and projection
+  \section fitting_neighborhoods Neighborhoods and weights
 
-  Some ComputeObject provide projection operators, which allows to define Moving Least Squares (MLS) surfaces (see \cite Levin:1998 and \cite Cheng:2008).
-  MLS surfaces are not defined explicitly, but rather implicitly by projection operators.
-  Under the hood, projecting on a MLS surface require to iterate between successive local fits (handled by the ComputeObject) and projection step (handled by a projection operator, as detailed below).
-  Ponca provide MLSEvaluationScheme to perform this evaluation.
-  To evaluate a MLS surface, you only need a ComputeObject and a set of points:
+  \subsection fitting_neighborhoods_filters Neighbor filters
+
+  The neighbor filter is constructed for each evaluation from a position \f$\mathbf{p}\f$ and a scale \f$t\f$
+  (`fit.setNeighborFilter({p, t})`). For every neighbor, it computes a weight and the coordinates of the neighbor in a
+  local frame:
+
+  | Filter                                       | Weight of a neighbor \f$\mathbf{q}\f$                                  | Local coordinates |
+  |----------------------------------------------|------------------------------------------------------------------------|-------------------|
+  | Ponca::DistWeightFilter<Point, Kernel>       | \f$\phi(\|\mathbf{q}-\mathbf{p}\|/t)\f$, 0 beyond \f$t\f$ for compact kernels | \f$\mathbf{q}-\mathbf{p}\f$ |
+  | Ponca::NoWeightFilter<Point>                 | 1 for every point                                                      | \f$\mathbf{q}-\mathbf{p}\f$ |
+  | Ponca::NoWeightFilterGlobal<Point>           | 1 for every point                                                      | \f$\mathbf{q}\f$  |
+
+  Ponca::NoWeightFilter and Ponca::NoWeightFilterGlobal do not limit the neighborhood: they are meant to process a set
+  of neighbors selected beforehand (e.g. by a k-nearest neighbors query). Ponca::FilterWithAttributes extends a filter
+  with additional data, for instance the normal at the evaluation position used by Ponca::CNC. All the filters are
+  described in \ref fitting_filters.
+
+  \subsection fitting_neighborhoods_kernels Weight kernels
+
+  The kernel \f$\phi\f$ of Ponca::DistWeightFilter controls how the influence of a neighbor decreases with its
+  distance:
+  - Ponca::SmoothWeightKernel, \f$\phi(x) = (x^2-1)^2\f$, is the default choice: smooth, compact, and fast to evaluate,
+  - Ponca::ConstantWeightKernel gives the same weight to all the points of the ball of radius \f$t\f$,
+  - Ponca::WendlandWeightKernel and Ponca::CompactExpWeightKernel are smoother compact kernels,
+  - Ponca::GaussianWeightKernel is not compact: every point contributes, which requires to bound the neighborhood
+    with a spatial query. As its standard deviation is \f$t\f$, it is wider than a compact kernel of radius \f$t\f$,
+  - Ponca::SingularWeightKernel tends to infinity when the distance tends to 0, which makes the fitted surface
+    interpolate the points \cite Alexa:2009:Hermite,
+  - Ponca::PolynomialSmoothWeightKernel generalizes the smooth kernel.
+
+  Their expressions are given in \ref fitting_kernel. The kernels used to compute derivatives must provide valid
+  derivatives (see \ref concepts_weighting).
+
+  \subsection fitting_neighborhoods_scale Choosing the scale
+
+  The scale \f$t\f$ is expressed in the units of the point cloud. For compact kernels, it is the radius of the
+  neighborhood. It drives a trade-off: small scales are sensitive to noise and to the sampling density (with too few
+  neighbors, fits become Ponca::UNSTABLE or Ponca::UNDEFINED), while large scales smooth out the details of the
+  surface and bias the estimates. A few tens of neighbors with a positive weight is a reasonable starting point.
+
+  Rather than choosing a single scale, the scale can also be considered as a parameter of the analysis: Growing Least
+  Squares \cite Mellado:2012:GLS study the evolution of the fitted sphere when \f$t\f$ grows, using the scale
+  derivatives described in \ref fitting_derivatives.
+
+  \subsection fitting_frames Local frames and coordinates
+
+  Filters derived from Ponca::CenteredNeighborhoodFrame (Ponca::DistWeightFilter, Ponca::NoWeightFilter) express the
+  neighbors relatively to the evaluation position, and the primitives are stored in this local frame. This keeps the
+  values close to 0 and improves the accuracy of the computations. The conversions are handled internally: the
+  functions of the fitted object take and return positions in the global frame.
+
+  The fitted primitive is thus attached to the evaluation position: `getNeighborFrame().center()` returns it, and the
+  implicit primitives can be re-expressed relatively to another position with `changeBasis(newCenter)` (this is what
+  the MLS projection does at each iteration).
+
+  \warning Even with centered frames, avoid data with very high or very low magnitudes (e.g. georeferenced coordinates,
+  or a point cloud whose extent is \f$10^{-6}\f$): translate and rescale the data globally beforehand.
+
+  \section fitting_primitives Primitives and fitting procedures
+
+  A basket aggregates several *computational objects*. Fitting a plane with Ponca::CovariancePlaneFit, for
+  instance, involves:
+  - a primitive, Ponca::Plane, which stores the result and provides the potential, the gradient and the projection,
+  - tools accumulating statistics over the neighborhood: Ponca::MeanPosition (barycenter) and Ponca::CovarianceBase
+    (covariance matrix),
+  - a fitting procedure, Ponca::CovariancePlaneFitImpl, which computes the plane from these statistics.
+
+  The aliases used in the examples combine these objects. For instance:
+  \snippet covariancePlaneFit.h CovariancePlaneFit Definition
+  \snippet orientedSphereFit.h OrientedSphereFit Definition
+
+  The main fitting procedures are:
+
+  | Procedure                                   | Primitive              | Input                         | Dimension | Notes |
+  |---------------------------------------------|------------------------|-------------------------------|-----------|-------|
+  | Ponca::CovariancePlaneFit                   | Ponca::Plane           | positions                     | any       | plane of least squares orthogonal distance (PCA); the orientation of the normal is arbitrary |
+  | Ponca::MeanPlaneFit                         | Ponca::Plane           | positions and normals         | any       | plane through the barycenter, orthogonal to the mean normal |
+  | Ponca::CovarianceLineFit                    | Ponca::Line            | positions                     | any       | line of largest variance; the potential is the squared distance to the line |
+  | Ponca::SphereFit                            | Ponca::AlgebraicSphere | positions                     | any       | algebraic sphere fit \cite Guennebaud:2007:APSS, host only |
+  | Ponca::OrientedSphereFit                    | Ponca::AlgebraicSphere | positions and normals         | any       | APSS \cite Guennebaud:2007:APSS, closed form, oriented |
+  | Ponca::UnorientedSphereFit                  | Ponca::AlgebraicSphere | positions, unoriented normals | any       | \cite Chen:2013:NOMG, generalized eigenvalue problem, not available with CUDA |
+  | Ponca::MongePatchQuadraticFit               | Ponca::MongePatch      | positions                     | 3D        | quadratic height field over the PCA plane (two passes), provides curvatures |
+  | Ponca::MongePatchRestrictedQuadraticFit     | Ponca::MongePatch      | positions                     | 3D        | same, without linear terms |
+  | Ponca::CNC<Point, Method>                   | none                   | positions and normals         | 3D        | Corrected Normal Current curvatures \cite pointCloudCNC-sgp23; not a basket, see \ref fitting_curvature_page |
+
+  Ponca::MeanPosition, Ponca::MeanNormal and Ponca::DryFit (which only counts the neighbors) can also be used alone.
+  The requirements and outputs of every class are listed in \ref fittingreference.
+
+  Each computational object provides a *cast function* returning the basket seen as this object, e.g.
+  `fit.plane()`, `fit.algebraicSphere()`, `fit.meanPosition()`, `fit.covarianceBase()` or `fit.glsParam()`. Cast
+  functions are useful when a function name is shared by several classes of the basket, and they make the code more
+  explicit:
+  \code
+  const auto& sphere = fit.algebraicSphere(); // the Ponca::AlgebraicSphere part of the basket
+  double uq          = sphere.uq();           // quadratic coefficient of the sphere
+  VectorType b       = fit.meanPosition().barycenter();
+  \endcode
+  Generic cast functions are also defined for the capabilities (`implicitPrimitive()`, `projectionOperator()`,
+  `curvatureTensor()`, ...), see \ref fittingreference_outputandcapabilities.
+
+  \section evaluation_schemes Evaluation schemes and MLS projection
+
+  A single fit approximates the surface around one evaluation position. *Moving Least Squares* (MLS) surfaces
+  \cite Levin:1998 \cite Cheng:2008 are defined implicitly by a projection operator: a point is projected onto the
+  primitive fitted around it, the fit is computed again at the projected position, and so on until convergence
+  \cite Alexa:2004:projection. Ponca::MLSEvaluationScheme implements these iterations for any fitting object
+  providing an implicit primitive:
   \snippet mls.cpp MLS Fit
-  The method MLSEvaluationScheme::compute can be customized by changing the projection operator (DirectProjectionOperator and GradientDescentProjectionOperator are currently available).
-  The class also provide control over the iteration stopping criteria (convergence and maximum number of iteration).
 
-  For convenience, Ponca also provide SingleEvaluationScheme, which has the same API than MLSEvaluationScheme, but simply does a single fit without projection. It is literally defined as
+  For instance, to project a position `q` onto the MLS surface defined by an oriented sphere fit:
+  \code
+  using Fit = Ponca::Basket<Point, Filter, Ponca::OrientedSphereFit>;
+
+  Fit fit;
+  fit.setNeighborFilter({q, t});                    // starting position and scale
+  Ponca::MLSEvaluationScheme<double> mls(10, 1e-8); // at most 10 iterations, tolerance on the displacement
+  if (mls.compute(fit, points) == Ponca::STABLE)
+  {
+      VectorType x = fit.getNeighborFrame().center(); // MLS projection of q
+      VectorType n = fit.primitiveGradient(x).normalized();
+  }
+  \endcode
+
+  - `MLSEvaluationScheme<Scalar>(nIter, eps)`: at most `nIter` iterations (5 by default); the iterations stop when the
+    projected position moves by less than `eps` (relative, `Eigen::NumTraits<Scalar>::dummy_precision()` by default),
+    or when a fit is not stable.
+  - At each iteration, the evaluation position of the fit is moved to the last projected position: at the end,
+    `fit.getNeighborFrame().center()` holds the projected position and the fit holds the primitive fitted there.
+  - The projection operator is a parameter of `compute`: Ponca::DirectProjectionOperator (default) uses the projection
+    of the primitive, Ponca::GradientDescentProjectionOperator follows the gradient of the scalar field and works with
+    any implicit primitive:
+    \code
+    mls.compute(fit, points, Ponca::GradientDescentProjectionOperator{});
+    \endcode
+  - `computeWithIds(fit, ids, points)` uses the same neighbors at every iteration: they are not queried again when the
+    evaluation position moves. Query them with a radius larger than \f$t\f$ if the position is expected to move.
+
+  Ponca::SingleEvaluationScheme has the same interface but performs a single fit, which makes it possible to write
+  code that is generic with respect to the evaluation scheme:
   \snippet evaluationScheme.h SingleEvaluationScheme Compute Definition
 
   \section fitting_derivatives Computing derivatives
 
-  Ponca provides BasketDiff, a class to extend an existing Basket with differentiation tools.
-  Given a specialized type `TestPlane` that performs covariance plane fitting (using Ponca::CovariancePlaneFit), and defined as follows:
-  
-  \snippet basket.cpp PlaneFitType
-  
-  BasketDiff allows to extend this type to compute its derivatives in space and/or scale:
-  
+  A fit computed at the position \f$\mathbf{p}\f$ and scale \f$t\f$ is a function of \f$(\mathbf{p}, t)\f$ (the
+  neighbors being fixed). Ponca::BasketDiff extends a basket to compute the derivatives of the fitted quantities with
+  respect to the scale (Ponca::FitScaleDer), to the evaluation position (Ponca::FitSpaceDer), or both
+  (Ponca::FitScaleSpaceDer). Its template parameters are the basket to differentiate, the differentiation type, and
+  the extensions computing the derivatives:
   \snippet basket.cpp PlaneFitDerTypes
 
-  \section fitting_custom Changing fitting process
+  Each fitting procedure has its own derivative extension, and the extensions are listed from the most basic to the
+  most derived (an extension can only use the extensions listed before it):
 
-  Internally, Ponca::Basket process the neighbors sequentially, and the `compute` function is overall equivalent to
+  | Extension                                 | Differentiates                                     | Requires |
+  |-------------------------------------------|----------------------------------------------------|----------|
+  | Ponca::CovariancePlaneDer                 | Ponca::CovariancePlaneFit (3D only)                | |
+  | Ponca::OrientedSphereDer                  | Ponca::OrientedSphereFit                           | |
+  | Ponca::UnorientedSphereDer                | Ponca::UnorientedSphereFit                         | |
+  | Ponca::MlsSphereFitDer                    | second order derivatives of the algebraic sphere   | Ponca::OrientedSphereDer or Ponca::UnorientedSphereDer, points with normals |
+  | Ponca::GLSDer                             | GLS parameters, geometric variation \cite Mellado:2012:GLS | a sphere derivative and Ponca::GLSParam |
+  | Ponca::NormalDerivativeWeingartenEstimator, Ponca::WeingartenCurvatureEstimatorDer | curvature tensor from the normal derivatives | a derivative providing `dNormal()`, space derivatives, 3D |
 
-  \snippet basket.cpp Fit Manual Traversal
+  \subsection fitting_derivatives_layout Layout of the derivatives
 
-  More complex computational scheme are included within Ponca (e.g BasketComputeObject::computeMLS for Moving Least Square). 
-  Still this simplicity can be used to change how this function behave and tailor it to your needs. 
+  The derivatives are stored in fixed-size arrays with one entry (or one column) per variable:
+  `ScalarArray` is a row vector for scalar quantities, and `VectorArray` is a `Dim` x N matrix for vector quantities.
 
-  \note Some methods require multiple fitting passes, e.g. \ref MongePatch. This is directly handled by the `compute` method. If you don't use it, 
-  you need to check if `eResults == NEED_ANOTHER_PASS` and repeat the `addNeighbor()`/`finalize()` steps. Don't forget to call `startNewPass()` at each iteration.
-
-  This also allows to use custom data structures in order to speedup computation. You may, for example exclude points you know won't be within 
-  the prescribed radius. For this reason, Ponca provide spatial structures that can be used to accelerate spatial queries. Consider for instance using the KdTree class 
-  with range queries: \snippet basket.cpp Fit computeWithIds
-
-  \note Currently, users need to ensure consistency between the query and the fit location/scale. This is expected to be fixed in the upcoming releases.
-  \see spatialpartitioning
-  
-  \section fitting_newfilter Defining a new neighbor filter
-  
-  Neighbor filters are critical components of the library. Their main goal is to provide computation information on how
-  much a point is considered to be a neighbor. This information is given through weights defined by the Filter and the
-  Kernel. In additions, some filters may transform the neighbors, for instance to express relatively to the evaluation
-  point. Perhaps the most common filter is DistWeightFilter, which filters out points that are too far and weight the
-  other according to their distance from the evaluation position, and also translate neighbors in the local frame.
-  Another alternative are the classes NoWeightFilter and NoWeightFilterGlobal, which do not filter any neighbor and offer
-  control over the transformation of the neighbors.
-
-  \see \ref fitting_filters
-  
-  \subsection fitting_newkernel Defining a new distance kernel
-
-  DistWeightFilter is defined from the euclidean distance field centered at the
-  evaluation position (see \ref DistWeightFilter::init()). Given a distance to this evaluation position, the weight
-  is computed (see \ref DistWeightFilter::w()) by applying a 1d weighting function defined as follows:
-
-  \snippet concepts.hpp WeightKernelConcept
-
-  DistWeightFilter also provides computation of the first and second order derivatives of the weight, both in
-  scale (\ref DistWeightFilter::scaledw(), \ref DistWeightFilter::scaled2w()) and space (\ref DistWeightFilter::spacedw(),
-  \ref DistWeightFilter::spaced2w()), and their cross derivatives (\ref DistWeightFilter::scaleSpaced2w()).
-  Theses methods check if the weight kernels provides the appropriate derivatives.
-    
-  \subsection fitting_newfilterapi Filter API
-
-  It is also possible to define new filter that could take into account any other desired parameter. The general API is:
-
-  \snippet concepts.hpp FilterConcept
-
-  The filter should extend either CenteredNeighborhoodFrame or GlobalNeighborhoodFrame. They help to express points in 
-  local coordinates, often relative to the evaluation location. CenteredNeighborhoodFrame helps with translation invariant filters.
-  Its conversion function is simply \f$x - p\f$, where \f$X\f$ is the query point and \f$p\f$ the evaluation location.  
-  GlobalNeighborhoodFrame does not affect coordinates and points remains in the global domain.  
-  
-  \section fitting_newestimator Defining a new Estimator
-
-  The goal of the %Fitting module is to provide lightweight, fast and generic algorithms for 3d point cloud processing.
-  We mostly focus on local regression techniques, which are core components of surface reconstruction techniques \cite Alexa:2001:Pss \cite Guennebaud:2007:APSS, geometric descriptors \cite Mellado:2012:GLS \cite Lejemble:2021:stable or shape analysis techniques \cite lejemble:2020:persistence.
-  Most of these techniques share similar computation, and can be combined in several ways.
-  For instance, \ref NormalDerivativeWeingartenEstimator estimates curvature values by analyzing the spatial derivatives of a normal field, and can be combined with any normal estimation technique providing spatial derivatives.
-
-  In order to ease the association of multiple computational components, the library is based on the Curiously Recurring Template Pattern (CRTP).
-  In contrast with polymorphism, this method allows to combine multiple short computations without adding runtime overhead (both in terms of memory footprint and execution time).
-  Instead, the combination of the computational components is performed and optimized when compiling the program, and thus require more memory and time for this stage.
-
-  Because of some properties of the C++ language, our classes does not inherit from a `Base` interface defining the API, but rather follows concepts, as described in \ref fitting_concepts.
-
-  \note Beforing defining a new estimator, please take a look at \ref fittingreference_primitiveoverview and \ref fittingreference_outputandcapabilities to learn more about available computation, 
-  their requirement and how to access their results. 
-
-  \subsection crtpestimator Understanding CRTP in Ponca 
-
-  The Basket class is the central part of the fitting module as it is the interface for all computation and provide the some utilities. The signature of the 
-  class is as follow: 
+  | Differentiation type      | Number of derivatives N | Indices                                                      |
+  |---------------------------|-------------------------|--------------------------------------------------------------|
+  | Ponca::FitScaleDer        | 1                       | [0]: derivative with respect to the scale                    |
+  | Ponca::FitSpaceDer        | `Dim`                   | [0, `Dim`): derivatives with respect to the evaluation position |
+  | Ponca::FitScaleSpaceDer   | 1 + `Dim`               | [0]: scale, [1, `Dim` + 1): evaluation position              |
 
   \code
-      template <class P, class NF, 
-                template <class, class, typename> class Ext0,
-                template <class, class, typename>... Exts>
-      class Basket;
+  using PlaneFit  = Ponca::Basket<Point, Filter, Ponca::CovariancePlaneFit>;
+  using PlaneDiff = Ponca::BasketDiff<PlaneFit, Ponca::FitScaleSpaceDer, Ponca::CovariancePlaneDer>;
+
+  PlaneDiff fit;
+  fit.setNeighborFilter({p, t});
+  fit.compute(points);
+  PlaneDiff::ScalarArray dPotential = fit.dPotential(); // 1 x 4: d/dt, d/dx, d/dy, d/dz
+  PlaneDiff::VectorArray dNormal    = fit.dNormal();    // 3 x 4: one column per variable
+  double     dPotential_dt = dPotential(0);
+  VectorType dNormal_dt    = dNormal.col(0);
   \endcode
 
-  The first two parameters are the Point type and the Filter used throughout the computation. 
-  The last two parameters defines the list of computation for each point cloud. Through multiple type indirection and type list unrolling, %Basket will 
-  inherit all those Extension type in reverse order. 
-
-  Unrolling example \ref example_cxx_basic_page, the basket is defined as:
-
-  \code  
-     using Fit1 = Basket<MyPoint, WeightFunc, OrientedSphereFit, GLSParam>;
-  \endcode 
-     
-  This line, defines the class hierarchy:
-   
-  \image html crtpexamplehierachy.svg
-  \note Some type are aggregates that will inject their dependancies within the class hierarchy. For example, \ref OrientedSphereFit depends on
-  MeanPosition, MeanNormal and AlgebraicSphere that appears in the class list although they were not explicitly defined by the user.
-
-  Because Basket inherit every types given as argument, it is easy to access any result or any set any parameter. It suffices to call the function
-  on the Basket object as-if it was an object of the computation you want to alter. 
-
-  The link between all these class is made through the defined `Base` type, which points to its parent class in the hierarchy.
-  It becomes possible to access all result, all functions defined in the hierarchy through this prefix, provided there is no overriden name. 
-  Hence, in this example, refering to `Base::m_uc` within GLSParam will reference the current value of `AlgebraicSphere::m_uc`. However, refering
-  to `Base::addLocalNeighbor` in GLSParam will reference the function `OrientedSphereFitImpl::addLocalNeighbor` as this is overriden by the class. 
-
-  In order to target more directly a Fitting method, Ponca provides cast operation. For example, the MeanNormal class provide the
-  `MeanNormal::meanNormal` function that returns a pointer to the implicit instance. 
-
-  \code 
-    /* const */ MeanNormal* meanNormal = fit.meanNormal();
-    // Do whatever you want with a 'MeanNormal' instance
-  \endcode
-
-  \subsection fitting_newestim Estimator API
-
-  \subsubsection fitting_newestimbase Minimal requirements
-
-  In order to make an estimator compatible with Ponca Fitting API, new estimator should have the following structure:
-
-  \snippet concepts.hpp ComputationalObjectConcept
-
-  \note The macro PONCA_FITTING_DECLARE_DEFAULT_TYPES defines the `Base` type (alias for T) as well as `Scalar`, `VectorType` and `NeighborFilter` for
-  manipulation of related data. This macro is defined within &lt;Fitting/defines.h&gt;
-  \note If the estimator is expected to be the upmost parent of the hierarchy, do not inherit from T and default it to be void.
-  \warning The macro PONCA_FITTING_DECLARE_DEFAULT_TYPES opens a public section. 
-
-  In order for each computation to work properly, the functions `init`, `addLocalNeighbor` and `finalize` should call their Base version (`Base::init`, `Base::addLocalNeighbor`, `Base::finalize`).
-  Presumably, this is among the first thing each of these function does.
-    
-  \subsubsection fitting_newcapabilities Computational objets capabilities and requirements
-
-  Aggregating small computational objects allows to minimize code duplication, but also to easily combine different techniques.
-  For instance, GLSDer can be used independently of the fitting technique, e.g. Ponca::OrientedSphereFit or Ponca::UnorientedSphereFit, as long as the fitted \ref PrimitiveBase "Primitive" is an AlgebraicSphere.
-
-  In order to detect if the computational objects are correctly combined, Ponca relies on C++20 concepts. Most concepts provided for Basket extensions and tools can be found within the Fitting/concepts.hpp file. 
-  For instance, the GLSParam class is defined as:
-
-  \snippet gls.h example_requirements_usage
-
-  We encourage macros to express requirements, as they ease definitions. For instance: 
-  \snippet gls.h example_requirements
-
-  This indicates that the class expects another extention to provide an AlgebraicSphere. If not, a compiler error
-  will be emitted. For instance, gcc emits:
-
-  ```sh
-ponca/tests/src/test.cpp:192:9:   required from ‘void callSubTests() [with Scalar = long double; int Dim = 3]’
-ponca/tests/src/test.cpp:252:5:   required from here
-ponca/Ponca/src/Fitting/Basket/basket.h:53:19: error: template constraint failure for ‘template<class DataPoint, class _NFi
-lter, class T>  requires  ProvidesAlgebraicSphere<T> class Ponca::GLSParam’
-   53 |             using type = Ext<P, NF, Aggregate>;
-      |                   ^~~~
-ponca/Ponca/src/Fitting/Basket/basket.h:53:19: note: constraints not satisfied
-  ```
-
-  The whole output can be quite verbose, but is very precise: it tells you exactly what expression of a requirement is invalid and
-  can help you debug the code. 
-  Classes do not describe which concept they satisfies, apart perhaps in their documentation.
-
-  \note In its current version, the requirement/capability system offer limited protection over the combination of tools providing the same capabilities.
-  Indeed, it is possible to build ill-formed combinations where two computations attempt to save their results at the same place, e.g. when using two fitting technique for the same primitive:
-  \snippet fit_plane.cpp Conflicting type
-  This case is not detected at compile time, but rather dynamically when calling finalize(), which returns `CONFLICT_ERROR_FOUND`.
-  Internally, this is implemented by checking if the primitive is already valid (ie. it has been computed already) when finalizing the computation.
-  This limitation is expected to be resolved in upcoming releases.
-
-  \subsubsection fitting_cast Providing cast operations
-
-  As explained earlier, the class hierarchy can not reach every function of every through the provided `Base` type due to overloading. 
-  The mecanism Ponca implements is a cast operator. Fortunately, this is quite common and a macro helps to define them. Add the following 
-  within a public section of your class:
-
+  The GLS parameters are differentiated by Ponca::GLSDer (`dtau()`, `deta()`, `dkappa()` and their scale-normalized
+  versions), which also computes the *geometric variation* \cite Mellado:2012:GLS from the scale derivatives:
   \code
-    PONCA_EXPLICIT_BASKET_CAST_OPERATORS(ClassName, className);
+  using GLSFit  = Ponca::Basket<Point, Filter, Ponca::OrientedSphereFit, Ponca::GLSParam>;
+  using GLSDiff = Ponca::BasketDiff<GLSFit, Ponca::FitScaleDer, Ponca::OrientedSphereDer, Ponca::GLSDer>;
+
+  GLSDiff fit;
+  fit.setNeighborFilter({p, t});
+  fit.compute(points);
+  double dkappa_dt = fit.dkappa()(0);
+  double nu        = fit.geomVar(1, 1, 1); // weights of the tau, eta and kappa terms
   \endcode
+  \warning Give the weights of `geomVar` explicitly: without argument, `fit.geomVar()` refers to the cast function of
+  Ponca::GLSDer, not to the geometric variation.
 
-  Where the first parameter is the class name and the second is the name of the cast function which is, most of the time, the same as the 
-  class name excpet a first lower case letter. Note that this macro requires the template parameter to be named following ponca conventions. 
-  A class may provide multiple cast operator. 
+  \section fitting_curvature_sec Curvature estimation
 
-  In order to respects concepts, a cast operator to a common name is required. This name can be found within the concept declaration (Fitting/concepts.hpp)
-
-  \subsubsection fitting_newdiff New primitive differentiation (BasketDiff API)
-    
-  The API for defining new estimator that differentiate the primitive follows the same principle from classical estimator. The base class is BasketDiff which follows the 
-  same CRTP / inheritance principle except that a Basket is required as a first parameter. 
-
-  \snippet concepts.hpp ComputationalDerivativesConcept
-
-  \note PrimitiveDer is the default entry point to most classes used in BasketDiff
-
-  A few addition should be notted however. First, the class is now templated on a flag (an integer) representing the variables according to which we want to differentiate. For now, 
-  Ponca defines only two set of variables (&lt;Fitting/enums.h&gt;):
-
-  - FitScaleDer: The derivatives of the primitive parameters w.r.t the scale (the neig radius)
-  - FitSpaceDer: The derivatives of the primitive parameters w.r.t the position of evaluation
-  - FitScaleSpaceDer: Compute derivative for both types. 
-
-  The macro `PONCA_FITTING_DECLARE_DEFAULT_DER_TYPES` defines two additionnal types `ScalarArray` and  `VectorArray`. Those types defines storage for derivative result. Note that 
-  they are fixed-size array whose size is adapted to the total number of derivatives. Their layout is described below depending on the type of differentiation. 
-
-  <table>
-      <tr>
-          <th>Fitting derivative value</th>
-          <th>Number of derivatives</th>
-          <th> Scalar Array indices </th>
-      </tr>
-      <tr>
-          <td>FitScaleDer</td>
-          <td> 1 </td>
-          <td> [0] is the derivative w.r.t scale </td>
-      </tr>
-      <tr>
-          <td> FitSpaceDer </td>
-          <td> DataPoint::Dim </td>
-          <td> [0:DataPoint::Dim] derivatives w.r.t eval position </td>
-      </tr>
-      <tr>
-          <td> FitScaleSpaceDer </td>
-          <td> 1 + DataPoint::Dim </td>
-          <td> [0] derivatives w.r.t scale, <br/> [1:DataPoint::Dim+1) derivatives w.r.t eval position </td>
-      </tr>
-  </table>
-
+  Mean curvatures, principal curvatures and principal directions can be estimated with several methods, presented
+  in a dedicated page: \subpage fitting_curvature_page.
 
   \section fitting_advanced Advanced usage
 
-  \subsection fitting_factory Iterating over common Baskets
+  \subsection fitting_factory Iterating over common baskets: the Factory
 
-  In many cases, one may want to compare multiple Baskets or extensions. The classical solution is to write a function that accepts a template type (which would be your Basket) and then call the function manually for each type. For this reason, Ponca provides a Factory that abstracts away the iteration over compute objects for the most common types.
-
+  Comparing several methods usually requires to write a function template and to call it for every basket type.
+  Ponca::Factory lists the most common compute objects for a given point type, neighbor filter and derivative type,
+  and iterates over them:
   \snippet ponca_factory.cpp FactoryBasicForeach
 
-  The Factory module also provides the ability to filter by concept. Most Ponca fitting concepts have a corresponding filter. For a concept named "ProvidesXXX", Ponca creates two filters: "XXXProvider" and "NotXXXProvider", which can be used for filtering.
-
+  The list can be filtered by capabilities: for the main capability concepts `ProvidesXXX` (see
+  \ref fittingreference_outputandcapabilities), the factory defines the predicates `XXXProvider` and
+  `NotXXXProvider` (listed in \ref fittingreference_factory). Several predicates are combined with a logical *and*.
+  Filtered lists store their objects, so their state persists between two calls to `foreach` when the objects are
+  taken by reference:
   \snippet ponca_factory.cpp FactoryFilterPersistent
 
-  Classical literature methods can also be obtained through the Factory. For a complete list, see the `Ponca::Method` enumeration.
-
+  Compute objects can also be retrieved by name:
   \snippet ponca_factory.cpp FactoryClassicalMethods
 
-  \warning Factories may contain different compute objects depending on the given point, filter, or derivative types. For example, Monge Patch fitting is currently only available in 3D; therefore, the Factory will include the corresponding classes only when provided with 3D points.
+  The names are listed in \ref fittingreference_factory. The content of the factory depends on its parameters: the
+  Monge patches and CNC estimators are only listed for 3D points, and `ASO` requires space derivatives.
 
   \subsection fitting_multiprimitive Fitting with multiple primitives
-  In most cases, only one primitive is included in the Basket, and it is recommended to use the helper classes provided by Ponca for fitting, e.g. CovariancePlaneFitImpl, OrientedSphereFitImpl.
-  However, Ponca also allows to combine multiple primitives, for instance to share intermediate computation results.
-  Using this functionality requires to really understand how the different primitives and fitting techniques are working.
-  In any case, it is recommended to explicitly define the computational arrangement, e.g.:
+
+  A basket usually contains one primitive, and the helper aliases (e.g. Ponca::CovariancePlaneFit,
+  Ponca::OrientedSphereFit) should be preferred. It is however possible to fit several primitives in the same basket,
+  for instance to share intermediate computations. The arrangement of the computational objects must then be given
+  explicitly:
   \snippet basket.cpp HybridType
 
-  After fitting, this object provides access to both the plane and the sphere, through the respective cast operators #AlgebraicSphere::algebraicSphere() and #Plane::plane().
+  After fitting, both primitives are accessed through their cast functions, `fit.algebraicSphere()` and
+  `fit.plane()`.
 
-  \section fitting_cuda Cuda and SYCL
-  Ponca can be used directly on GPU, thanks to several mechanisms:
-   - Eigen capabilities, see <a href="http://eigen.tuxfamily.org/dox-devel/TopicCUDA.html"  target="_blank">Eigen documentation</a> for more details.
-   You *need* to use a consistent `Eigen::Index` on both CPU and GPU if you plan to transfer memory between the computing units.
-   That's why we recommend to set the following preprocessor variable when compiling your project:
-   \code -DEIGEN_DEFAULT_DENSE_INDEX_TYPE=int\endcode
-   You might also need to define the `--expt-relaxed-constexpr` preprocessor option for `NVCC`.
-   Example of working cmake file (see \ref example_cu_ssc_page):
-   \code
-   enable_language(CUDA)
-   add_executable(ponca_ssgls "ponca_ssgls.cu")
-   target_compile_options(ponca_ssgls PRIVATE --expt-relaxed-constexpr)
-   \endcode
-   - Automatic CPU/GPU compilation qualifiers. We use the macro
+  The capability concepts check that the requirements of every class are met, but they do not detect two procedures
+  writing the same primitive, e.g.:
+  \snippet fit_plane.cpp Conflicting type
+  This case is detected when finalizing the fit, which returns Ponca::CONFLICT_ERROR_FOUND: each procedure checks
+  that its primitive has not already been computed.
+
+  \subsection fitting_custom Changing the fitting process
+
+  `compute` is equivalent to the following loop:
+  \snippet basket.cpp Fit Manual Traversal
+
+  Methods that need several passes over the neighborhood (e.g. Ponca::MongePatchQuadraticFit, which first fits a
+  plane, then a height field over it) return Ponca::NEED_OTHER_PASS from `finalize()`. When neighbors are added
+  manually, repeat the traversal, calling `startNewPass()` before each pass:
   \code
-          PONCA_MULTIARCH void function();
+  fit.setNeighborFilter({p, t});
+  fit.init();
+  Ponca::FIT_RESULT res;
+  do
+  {
+      fit.startNewPass();
+      for (const auto& q : points)
+          fit.addNeighbor(q);
+      res = fit.finalize();
+  } while (res == Ponca::NEED_OTHER_PASS);
   \endcode
-  to use the same code for C++ and CUDA. It has no effect when the code is compiled with GCC or Clang, but it will force the compilation for both host and device architectures when compiling with nvcc. A similar macro system is provided for mathematical functions, to switch between STL and CUDA versions.
 
-  Check the \ref cu_ssgl_intro_sec "C++/Cuda", the \ref example_python_ssc_page "Python/Cuda" (using PyCuda), \ref example_sycl_basic and \ref example_sycl_kdtree examples for more details and how-to.
+  Writing the traversal explicitly makes it possible to use any data structure, or any rule to select the neighbors.
 
-  <hr>
-  <center>[\ref fitting_concepts "Go to concept page"]</center>
-  <center>[\ref user_manual_page "Go back to user manual"]</center>
+  \subsection fitting_extending_sec Extending the module
+
+  New weight kernels, neighbor filters and computational objects can be defined and combined with the existing ones:
+  see \subpage fitting_extending_page.
+
+  \section fitting_cuda CUDA and SYCL
+
+  The fitting objects can be used in CUDA and SYCL kernels, with the same code as on the CPU: functions are marked
+  with `PONCA_MULTIARCH`, and Eigen is used in its device-compatible subset. A few methods rely on host-only code
+  (Ponca::SphereFit, the Monge patches and Ponca::CNC), and Ponca::UnorientedSphereFit is not available when
+  compiling with nvcc. Compilation options, data transfers and examples are given in \ref ponca_gpu_page.
  */
- }
+} // namespace Ponca

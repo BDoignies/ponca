@@ -1,0 +1,27 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+
+/*!
+  \page example_cxx_factory_page Iterating over fitting methods with the Factory
+
+  This example uses Ponca::Factory to process the same neighborhood with many compute objects, without writing their
+  types:
+  - all the methods of the factory are applied in a loop (their state is not kept),
+  - the list is filtered to keep the methods that build an implicit primitive and provide a projection operator, but
+    no derivatives; the filtered list stores its objects, which are then used to project a point,
+  - a method is retrieved by its name (`APSS`).
+
+  Build and run:
+  \code{.sh}
+  cmake --build build --target ponca_factory
+  ./build/examples/cpp/ponca_factory
+  \endcode
+
+  See also \ref fitting_factory and \ref fittingreference_factory.
+
+  \include cpp/ponca_factory.cpp
+*/

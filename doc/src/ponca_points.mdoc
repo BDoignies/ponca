@@ -1,106 +1,132 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 namespace Ponca
 {
   /*!
-    \page ponca_points %Defining Points in Ponca
+    \page ponca_points Defining points
 
-    <center>[\ref user_manual_page "Go back to user manual"]</center>
+    \tableofcontents
 
-    <hr>
-    
-    \section ponca_points_intro Points
+    \section ponca_points_intro Points in Ponca
 
-    %Ponca is designed to be lightweight and easy to integrate in existing code bases.
-    To achieve this goal:
-     - %Ponca does not include datastructures to represent and store point cloud data, and let clients defining how to
-       store and access data,
-     - %Ponca cannot rely on C++ polymorphism to define its API: most computational objects used through the library
-       involve very small computation. Combining these computation using polymorphism requires to use virtual functions,
-       which introduce a very high overhead (considering the small computation of each class).
-     - Instead, %Ponca is based on 'Concepts' that need to be followed to use/extend the library.
+    %Ponca is designed to be integrated in existing code bases. It therefore does not impose any data structure to
+    store point clouds:
+     - there is no point cloud class: algorithms receive points one at a time, or iterate over ranges of points
+       (iterators, or indices in a random-access container),
+     - the point type is a template parameter defined by the client code: it describes how the data of one sample
+       (position, normal, ...) are accessed, and may simply wrap existing buffers,
+     - no virtual function is involved: the computation performed for each neighbor is very small (a few sums), so the
+       cost of dynamic dispatch would dominate. The requirements on the types are expressed as concepts instead, see
+       \ref ponca_concepts.
 
-    Hence, we expect client code to define how point data can be accessed. The minimal API required to use %Ponca:
-     - an integer `Dim` defining the number of dimensions of the ambient space (3 for 3d point clouds)
-     - types `Scalar` and `VectorType` that will be used by the library to represent scalars and vectors.
-     - a default constructor
-     - read and read/write access to an attribute describing the position of a point: `pos()`
-    
-    A example respecting those minimal API is:
-    \snippet concepts.hpp PointConcept
-    
-    \note The `PONCA_MULTIARCH` macro allows for custom datastructure to be used within GPU environment. See: \ref Cuda for more information about GPU computation. 
+    A point type must define (see \ref concepts_point for the complete list):
+     - an integer `Dim`, the dimension of the ambient space (3 for 3D point clouds),
+     - the types `Scalar`, `VectorType` and `MatrixType` used to represent scalars, vectors and matrices,
+     - a default constructor,
+     - read access to the position: `pos()`,
+     - optionally, read access to a normal vector: `normal()`, required by the methods working with oriented points.
 
-    Depending on the use cases, other types (e.g. `MatrixType`) or accessors (`normal()`) might be required. 
+    A complete point type storing positions and normals in Eigen vectors is, for instance:
 
-    There is no notion of Pointsets in %Ponca. Most methods can work by providing individual points. For convenience, some functions offer utilities when iterating over collections of points is necessary. In these cases, only iterators (or indices within a container) are required. While this design is compatible with any data structure, using a contiguous container is recommended for optimal performance.
-    
-    \see spatialpartitioning
+    \code
+    struct MyPoint
+    {
+        enum { Dim = 3 };
+        using Scalar     = float;
+        using VectorType = Eigen::Matrix<Scalar, Dim, 1>;
+        using MatrixType = Eigen::Matrix<Scalar, Dim, Dim>;
 
-    \section points_utility Utility classes and functions
+        PONCA_MULTIARCH inline MyPoint(const VectorType& pos    = VectorType::Zero(),
+                                       const VectorType& normal = VectorType::Zero())
+            : m_pos(pos), m_normal(normal) {}
 
-    %Ponca still provides some basic points structure that follow the minimal API described above relying on Eigen storage. Those structures can be found under the header `&lt;Ponca/Common&gt;`.
+        PONCA_MULTIARCH inline const VectorType& pos()    const { return m_pos; }
+        PONCA_MULTIARCH inline const VectorType& normal() const { return m_normal; }
 
-    <table>
-        <tr>
-            <th> Class </th>
-            <th> Capabilities </th>
-            <th> Example Usage </th>
-        </tr>
-        <tr>
-            <td> PointPosition </td>
-            <td> Provides position </td>
-            <td> <code>PointPosition&lt;float, 3&gt; pt({1, 2, 3});</code></td>
-        </tr>
-        <tr>
-            <td> PointPositionNormal </td>
-            <td> Provides position and normal </td>
-            <td> <code>PointPositionNormal&lt;float, 3&gt; pt({1, 2, 3}, {1, 0, 0});</code></td>
-        </tr>
-        <tr>
-            <td> PointPositionNormalBinding </td>
-            <td> Provides position and normal from a linear 1D Scalar array </td>
-            <td> See \ref example_cxx_binding_page </td>
-        </tr>
-        <tr>
-            <td> PointPositionNormalLazyBinding </td>
-            <td> Similar to PointPositionNormalBinding, but only convert data to eigen when needed </td>
-            <td> See \ref example_cxx_binding_page </td>
-        </tr>
-    </table>
+    private:
+        VectorType m_pos, m_normal;
+    };
+    \endcode
 
-    The library also provides a few utilities to generate (noisy) points on simple geometrical object. All function expect the Point structure to provide both poisitions and normals.
-    
-    <table>
-        <tr>
-            <th> Function </th>
-            <th> Documentation </th>
-        </tr>
-        <tr>
-            <td> \ref getRandomPoint </td>
-            <td> Generate a random noisy point on the unit sphere. </td>
-        </tr>
-        <tr>
-            <td> \ref getPointOnSphere </td>
-            <td> Generate points on a sphere. </td>
-        </tr>
-        <tr>
-            <td> \ref getPointOnCircle </td>
-            <td> Generate points on a circle. Only x/y coordinates are filled. </td>
-        </tr>
-        <tr>
-            <td> \ref getPointOnPlane </td>
-            <td> Generate points on a plane </td>
-        </tr>
-        <tr>
-            <td> \ref getPointOnParaboloid </td>
-            <td> Generate a point on a paraboloid. Only works for 3D points. </td>
-        </tr>
-    </table>
+    \note The `PONCA_MULTIARCH` macro marks the functions as callable from both the host and CUDA devices. It has no
+    effect when compiling for the CPU only, see \ref ponca_gpu_page.
 
-    \warning Those function add noise to both position and normal by default. Read documentation of methods to disable either one of those. 
+    \section points_utility Point types provided by Ponca
 
+    The Common module (`#include <Ponca/Common>`, also included by `<Ponca/Fitting>`) provides point types that follow
+    the point concept and rely on Eigen storage:
 
+    | Class                                                | Content                       | Construction                                   |
+    |------------------------------------------------------|-------------------------------|------------------------------------------------|
+    | Ponca::PointPosition<Scalar, Dim>                    | position                      | `PointPosition<float, 3> pt({1, 2, 3});`       |
+    | Ponca::PointPositionNormal<Scalar, Dim>              | position and normal           | `PointPositionNormal<float, 3> pt({1, 2, 3}, {1, 0, 0});` |
+    | Ponca::PointPositionNormalBinding<Scalar, Dim>       | read-only view on an interlaced buffer | `PointPositionNormalBinding<float, 3> pt(buffer, i);` |
+    | Ponca::PointPositionNormalLazyBinding<Scalar, Dim>   | same, the view is created at each access | `PointPositionNormalLazyBinding<float, 3> pt(buffer, i);` |
 
-    */
+    The binding types expect an interlaced buffer of scalars storing, for each point, its `Dim` coordinates followed by
+    the `Dim` coordinates of its normal: the point of index `i` reads its position at `buffer + 2 * Dim * i` and its
+    normal at `buffer + 2 * Dim * i + Dim`.
+    - Ponca::PointPositionNormalBinding creates the `Eigen::Map` objects at construction: accessing the data is then
+      free, but the object stores two maps.
+    - Ponca::PointPositionNormalLazyBinding only stores the buffer pointer and the index: maps are created when
+      `pos()` or `normal()` are called. Its `bind(buffer)` function changes the buffer, e.g. to process successive
+      frames of an animation with the same points.
+
+    \section ponca_points_binding Using existing data without copy
+
+    Since points are only accessed through `pos()` and `normal()`, a point type can be a lightweight view over data
+    stored elsewhere. In the following, the binding type is created on the fly for every neighbor, and no data is
+    duplicated:
+
+    \code
+    using MyPoint = Ponca::PointPositionNormalBinding<double, 3>;
+    using Filter  = Ponca::DistWeightFilter<MyPoint, Ponca::SmoothWeightKernel<double>>;
+    using Fit     = Ponca::Basket<MyPoint, Filter, Ponca::OrientedSphereFit, Ponca::GLSParam>;
+
+    // buffer: 6 * n doubles (x, y, z, nx, ny, nz for each point), owned by the application
+    Fit fit;
+    fit.setNeighborFilter({evaluationPoint, scale});
+    fit.init();
+    for (int i = 0; i < n; ++i)
+        fit.addNeighbor(MyPoint(buffer, i));
+    fit.finalize();
+    \endcode
+
+    The complete program is given in \ref example_cxx_binding_page.
+
+    \section ponca_points_containers Collections of points
+
+    There is no notion of point set in %Ponca: the functions that process several points take ranges.
+    - Fitting objects iterate over a container or a pair of iterators (`compute`), or over a range of indices in a
+      random-access container (`computeWithIds`), see \ref fitting_Fitting.
+    - Spatial data structures (Ponca::KdTreeDense, Ponca::KdTreeSparse) copy the points they are built from, or convert
+      them with a user-provided functor, and give access to them with `points()`. Ponca::KnnGraph uses the points of
+      the kd-tree it is built from. See \ref spatialpartitioning.
+
+    While any container providing these accesses can be used, a contiguous container (`std::vector`, a raw buffer, ...)
+    is recommended for performance.
+
+    \section ponca_points_generation Generating synthetic points
+
+    The Common module also provides functions that sample simple shapes, mostly used to test the library and to write
+    examples. Positions and normals are perturbed by default; the noise amplitude is absolute (it does not depend on
+    the size of the shape).
+
+    | Function                                                    | Samples                                                                       |
+    |-------------------------------------------------------------|-------------------------------------------------------------------------------|
+    | Ponca::getPointOnSphere<DataPoint>(radius, center, addPositionNoise = true, addNormalNoise = true, reverseNormals = false) | a uniformly distributed point of the sphere, with an outward normal. The position noise is a random displacement of norm at most 0.01; the normal noise recomputes the normal from such a displaced position; `reverseNormals` flips each normal with probability 1/2 |
+    | Ponca::getPointOnPlane<DataPoint>(position, normal, radius, addPositionNoise = true, addNormalNoise = true, reverseNormals = false) | a point of the plane at distance `radius` from `position`, in a random direction. The normal noise rotates the normal by up to \f$\pi/16\f$ around two tangent axes |
+    | Ponca::getPointOnRectangularPlane<DataPoint>(position, normal, width, height, xAxis, yAxis, addPositionNoise = true) | a point of the rectangle `position + u * xAxis + v * yAxis`, \f$|u| \leq\f$ `width/2`, \f$|v| \leq\f$ `height/2` (positions only, `normal` is ignored) |
+    | Ponca::getPointOnCircle<VectorType>(radius, center)         | a uniformly distributed position in the disk of the xy-plane (returns a `VectorType`, only `x` and `y` are modified) |
+    | Ponca::getPointOnParaboloid<DataPoint>(a, b, s, addNoise = true) | a point of the paraboloid \f$z = a x^2 + b y^2\f$, \f$(x, y) \in [-s, s]^2\f$, with a normal (3D only) |
+    | Ponca::getPointOnParaboloid<DataPoint>(a, b, c, d, e, f, s, addNoise = true) | a point of \f$z = a x^2 + b y^2 + c x y + d x + e y + f\f$, \f$(x, y)\f$ in the disk of radius `s` (3D only; normals are set when the point type has normals) |
+    | Ponca::getRandomPoint<DataPoint>()                           | a point at distance \f$[0.99, 1.01]\f$ from the origin in a random direction, with a normal close to this direction |
+
+    \warning These functions rely on `Eigen::internal::random`, i.e. on `std::rand()`: seed it with `std::srand` to
+    get reproducible samples. The sequence differs between platforms.
+  */
 } // End of Ponca namespace
-
-

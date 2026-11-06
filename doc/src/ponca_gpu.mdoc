@@ -1,0 +1,120 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page ponca_gpu_page GPU programming: CUDA and SYCL
+
+  \tableofcontents
+
+  \section ponca_gpu_intro Overview
+
+  %Ponca is header-only, and most of its classes can be compiled for GPUs. The same code then runs on the CPU and in
+  device kernels: a fit is typically computed by one GPU thread, each thread processing one evaluation position. This
+  relies on:
+  - the `PONCA_MULTIARCH` macro, which marks the functions as `__host__ __device__` when compiling with nvcc (see
+    \ref common_macros). User-defined types (points, filters, kernels) used in kernels must use it as well,
+  - the device-compatible subset of Eigen (see the
+    <a href="https://eigen.tuxfamily.org/dox/TopicCUDA.html" target="_blank">Eigen documentation</a>),
+  - fixed-size containers and static data structures for the spatial queries (see \ref common_containers).
+
+  \section ponca_gpu_availability What can run on the device
+
+  | Feature                                                     | On the device |
+  |-------------------------------------------------------------|---------------|
+  | Point types of the Common module                            | yes           |
+  | Neighbor filters and weight kernels                         | yes           |
+  | Ponca::Basket and Ponca::BasketDiff (`compute(begin, end)`, `computeWithIds(ids, points)`, manual traversal) | yes; `compute(container)` is host-only |
+  | Ponca::CovariancePlaneFit, Ponca::CovarianceLineFit, Ponca::MeanPlaneFit, Ponca::OrientedSphereFit, Ponca::GLSParam, derivatives and curvature estimators based on them | yes. The covariance is decomposed with a closed-form solver on the device: results may slightly differ from the CPU |
+  | Ponca::SphereFit, Ponca::MongePatchQuadraticFit, Ponca::MongePatchRestrictedQuadraticFit | no (they rely on Eigen solvers that are not available on the device) |
+  | Ponca::UnorientedSphereFit                                  | no (not included when compiling with nvcc) |
+  | Ponca::CNC                                                  | no (dynamic memory and random number generation) |
+  | Ponca::MLSEvaluationScheme, Ponca::SingleEvaluationScheme   | yes           |
+  | Building kd-trees and graphs                                | no: build them on the host |
+  | Querying kd-trees and graphs                                | yes, through static structures, see \ref ponca_gpu_spatial |
+  | Point generation functions                                  | no            |
+
+  \section ponca_gpu_cuda CUDA
+
+  \subsection ponca_gpu_cuda_setup Compilation
+
+  %Ponca requires C++20, hence CUDA 12 or later. The examples are compiled with the following options:
+  - `CMAKE_CUDA_STANDARD` set to 20,
+  - `--expt-relaxed-constexpr`, so that `constexpr` functions of Eigen and of the STL can be called from device code,
+  - `-DEIGEN_DEFAULT_DENSE_INDEX_TYPE=int`: the type `Eigen::Index` must be the same on the CPU and on the GPU when
+    Eigen objects are transferred between them.
+
+  \code
+  cmake_minimum_required(VERSION 3.18)
+  enable_language(CUDA)
+  set(CMAKE_CUDA_STANDARD 20)
+  set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+  add_executable(myapp "myapp.cu")
+  target_compile_definitions(myapp PRIVATE EIGEN_DEFAULT_DENSE_INDEX_TYPE=int)
+  target_compile_options(myapp PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>)
+  target_link_libraries(myapp PRIVATE Ponca::Fitting Ponca::SpatialPartitioning)
+  \endcode
+
+  \subsection ponca_gpu_cuda_fitting Fitting in a kernel
+
+  In a kernel, fitting objects are used as on the CPU, with the neighbors stored in device memory. For instance, each
+  thread of the kernel of \ref example_cu_ssc_page fits a sphere in a screen-space neighborhood:
+  \snippet cuda/ssgls/ponca_ssgls.cu kernel
+
+  \subsection ponca_gpu_spatial Spatial data structures on the device
+
+  Kd-trees and graphs are built on the host. Their internal buffers (points, nodes and samples for the kd-trees,
+  points and neighbor indices for the graphs) can then be copied to the device, and wrapped in a static structure
+  whose traits use raw pointers:
+  \snippet cuda_utils.cu Definition KdTreeGPU
+  \snippet cuda_utils.cu Definition KnnGraphGPU
+
+  The example \ref example_cu_kdtree_page proceeds as follows:
+  - [host] build the kd-tree on the CPU,
+    \snippet cuda/ponca_fit_kdtree.cu Build KdTree on CPU
+  - [host] copy its buffers to the GPU, with the helper functions of `examples/cuda/cuda_utils.cu`
+    (`deepCopyKdTreeBuffersToDevice` uses `cudaMalloc` and `cudaMemcpy`),
+    \snippet cuda/ponca_fit_kdtree.cu Copy KdTree on GPU
+  - [device] in the kernel, create the static kd-tree from the buffers and query it,
+    \snippet cuda_utils.cu Use KdTree.rangeNeighbors on the GPU
+  - [host] free the GPU memory.
+    \snippet cuda/ponca_fit_kdtree.cu Free KdTree from memory on GPU
+
+  Ponca::StaticKdTreeBase provides all the query functions of the kd-trees, without the construction. The k-NN graph
+  is transferred in the same way (see \ref example_cu_knngraph_page):
+  \snippet ponca_fit_knngraph.cu Build KnnGraph for CPU
+  \snippet ponca_fit_knngraph.cu Copy KnnGraph on GPU
+
+  The range queries of the graphs use fixed-size containers on the device (Ponca::NeighborGraphPointerTraits), whose
+  capacity bounds the number of points that can be visited.
+
+  \section ponca_gpu_sycl SYCL
+
+  The same mechanisms apply with SYCL: the fits are computed in `parallel_for` kernels over points allocated in device
+  memory, and the kd-tree buffers are copied with SYCL memory allocations. The examples are compiled with
+  <a href="https://adaptivecpp.github.io/" target="_blank">AdaptiveCpp</a> when it is found by CMake:
+  - \ref example_sycl_basic_page &mdash; plane fitting in a SYCL kernel,
+  - \ref example_sycl_kdtree_page &mdash; kd-tree queries in a SYCL kernel, with the static kd-tree type
+    \snippet sycl_kdtree.h Definition KdTreeGPU
+
+  \section ponca_gpu_python Python
+
+  The Python binding can run the computations on CUDA devices, from arrays allocated by CuPy, PyTorch or any library
+  supporting DLPack: see \ref pyponca_manual_cuda. The example \ref example_python_ssc_page uses PyCUDA to call a
+  kernel written in C++.
+
+  \section ponca_gpu_examples Examples
+
+  - \ref example_cu_fit_plane_page &mdash; plane fitting in a CUDA kernel, without spatial data structure,
+  - \ref example_cu_kdtree_page &mdash; plane fitting in a CUDA kernel, with neighbors collected by a kd-tree,
+  - \ref example_cu_knngraph_page &mdash; plane fitting in a CUDA kernel, with neighbors collected by a k-NN graph,
+  - \ref example_cu_ssc_page &mdash; screen-space curvature in CUDA,
+  - \ref example_python_ssc_page &mdash; screen-space curvature in CUDA, driven from Python,
+  - \ref example_sycl_basic_page and \ref example_sycl_kdtree_page &mdash; SYCL counterparts.
+ */
+} // namespace Ponca

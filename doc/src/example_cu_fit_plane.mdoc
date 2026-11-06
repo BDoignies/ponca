@@ -1,0 +1,25 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+
+/*!
+  \page example_cu_fit_plane_page Fitting in CUDA kernels
+
+  This example fits a plane at every point of a planar point cloud in a CUDA kernel: each thread sets up a fit at the
+  position of its point, iterates over all the points of the cloud (stored in device memory), and writes the
+  potential and the gradient of the fitted plane. Without spatial data structure, every thread visits every point;
+  see \ref example_cu_kdtree_page for a version using a kd-tree.
+
+  To compile and run the example:
+  \code{.sh}
+  cmake --build build --target cuda_fit_plane
+  ./build/examples/cuda/cuda_fit_plane
+  \endcode
+
+  See also \ref ponca_gpu_page.
+
+  \include cuda/ponca_fit_plane.cu
+ */

@@ -6,9 +6,17 @@
 
 
 /*!
-  \page example_cxx_fit_plane_page Ponca basic plane fit
+  \page example_cxx_fit_plane_page Plane fitting
 
-  This is an example of how to use Ponca to compute surface variation on random data with plane fitting.
+  This example fits a plane with Ponca::CovariancePlaneFit to random data, and computes the surface variation
+  \cite Pauly:2002:PSSimplification, a measure of the deviation of the neighborhood from a plane (see
+  \ref fittingreference_outputandcapabilities).
+
+  Build and run:
+  \code{.sh}
+  cmake --build build --target ponca_fit_plane
+  ./build/examples/cpp/ponca_fit_plane
+  \endcode
 
   \include cpp/ponca_fit_plane.cpp
 */

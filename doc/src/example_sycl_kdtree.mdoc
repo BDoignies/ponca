@@ -6,9 +6,20 @@
 
 
 /*!
-  \page example_sycl_kdtree_page Using KdTree in SYCL kernels
+  \page example_sycl_kdtree_page Using kd-trees in SYCL kernels
 
-  This is an example of how to use Kdtree queries within SYCL kernels to speed-up the Ponca Fitting library.
+  This example is the SYCL counterpart of \ref example_cu_kdtree_page. A kd-tree is built on the CPU, its buffers are
+  copied to device memory with SYCL allocations (helper functions of `examples/sycl/sycl_kdtree.h`), and the kernel
+  queries the tree to collect the neighbors of each point before fitting a plane.
+
+  The example is compiled when <a href="https://adaptivecpp.github.io/" target="_blank">AdaptiveCpp</a> is found by
+  CMake:
+  \code{.sh}
+  cmake --build build --target ponca_fit_kdtree_sycl
+  ./build/examples/sycl/ponca_fit_kdtree_sycl
+  \endcode
+
+  See also \ref ponca_gpu_sycl.
 
   \include sycl/ponca_fit_kdtree.cpp
 */

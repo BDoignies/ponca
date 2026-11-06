@@ -8,20 +8,45 @@
 /*!
   \page example_page Examples
 
-  Here is a list of all Ponca examples :
-  - @ref fitting "Fitting Module"
-    - \subpage example_cxx_basic_page : Basic use of Ponca.
-    - \subpage example_cxx_fit_plane_page : Basic use of plane fitting.
-    - \subpage example_cxx_fit_line_page : Demonstrate how to use line fitting
-    - \subpage example_cxx_binding_page : How to bind Ponca with your own data structures.
-    - \subpage example_cxx_pcl_page : How to use Ponca with Point cloud library (PCL). A basic example to compute and visualize surface curvature.
-    - \subpage example_cu_ssc_page : Calculate Screen Space Curvature using CUDA/C++.
-    - \subpage example_python_ssc_page : Calculate Screen Space Curvature using CUDA/Python.
-    - \subpage example_sycl_basic_page : Fit plane in SYCL Kernel.
-  - @ref spatialpartitioning "Spatial Partitioning Module"
-    - \subpage example_cxx_neighbor_search : Nearest, k-nearest and range neighbor searches using Ponca::KdTree.
-    - \subpage example_cxx_nanoflann_page : Comparison between Nanoflann and Ponca KdTree APIs.
-    - \subpage example_cu_kdtree_page : Calculate Object Space Curvature using CUDA/C++ and Kdtree.
-    - \subpage example_sycl_kdtree_page : Use KdTree queries within SYCL kernels.
+  The examples are located in the `examples/` folder of the repository. They are built with the CMake option
+  `PONCA_CONFIGURE_EXAMPLES` (enabled by default), either all at once with the target `ponca-examples`, or one by one
+  with the target given on their page:
+  \code{.sh}
+  cmake -S . -B build -DPONCA_CONFIGURE_EXAMPLES=ON
+  cmake --build build --target ponca-examples
+  \endcode
+  The executables are generated in `build/examples/`. Examples depending on optional libraries (PCL, CUDA, libpng,
+  SYCL) are only configured when these libraries are found.
 
+  \section example_page_cpp C++ examples
+
+  | Example                                          | Module(s)            | Content |
+  |--------------------------------------------------|----------------------|---------|
+  | \subpage example_cxx_basic_page                  | Fitting              | sphere fits (oriented, unoriented, from positions only), GLS parameters and curvatures on random data |
+  | \subpage example_cxx_fit_plane_page              | Fitting              | plane fitting and surface variation |
+  | \subpage example_cxx_fit_line_page               | Fitting              | line fitting |
+  | \subpage example_cxx_binding_page                | Fitting              | binding %Ponca to raw interlaced buffers, without data duplication |
+  | \subpage example_cxx_factory_page                | Fitting              | iterating over many fitting methods with the Factory |
+  | \subpage example_cxx_neighbor_search             | Spatial Partitioning | nearest, k-nearest and range queries with kd-trees and k-NN graphs |
+  | \subpage example_cxx_customize_kdtree_page       | Spatial Partitioning | storing additional data in the nodes of a kd-tree |
+  | \subpage example_cxx_nanoflann_page              | Spatial Partitioning | comparison of the APIs and performances of the Nanoflann and %Ponca kd-trees |
+  | \subpage example_cxx_pcl_page                    | Fitting              | computing and visualizing the surface curvature in the Point Cloud Library (PCL) |
+
+  \section example_page_gpu GPU examples
+
+  | Example                                          | Language     | Content |
+  |--------------------------------------------------|--------------|---------|
+  | \subpage example_cu_fit_plane_page               | CUDA         | plane fitting in a CUDA kernel |
+  | \subpage example_cu_kdtree_page                  | CUDA         | plane fitting in a CUDA kernel, with neighbors queried in a kd-tree |
+  | \subpage example_cu_knngraph_page                | CUDA         | plane fitting in a CUDA kernel, with neighbors queried in a k-NN graph |
+  | \subpage example_cu_ssc_page                     | CUDA         | screen-space curvature of images storing positions and normals |
+  | \subpage example_python_ssc_page                 | CUDA, Python | screen-space curvature, with the CUDA kernel driven from Python |
+  | \subpage example_sycl_basic_page                 | SYCL         | plane fitting in a SYCL kernel |
+  | \subpage example_sycl_kdtree_page                | SYCL         | plane fitting in a SYCL kernel, with neighbors queried in a kd-tree |
+
+  See also \ref ponca_gpu_page.
+
+  \section example_page_python Python binding
+
+  The examples of the Python binding are given in \ref pyponca_api.
  */

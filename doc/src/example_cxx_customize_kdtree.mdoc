@@ -1,0 +1,24 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+
+/*!
+  \page example_cxx_customize_kdtree_page Customizing the nodes of a kd-tree
+
+  This example defines a kd-tree whose inner nodes store their bounding box, by providing custom node types to
+  Ponca::KdTreeDefaultTraits. The new attribute is filled when the nodes are configured during the construction of
+  the tree, and read afterwards from the nodes of the tree.
+
+  Build and run:
+  \code{.sh}
+  cmake --build build --target ponca_customize_kdtree
+  ./build/examples/cpp/ponca_customize_kdtree
+  \endcode
+
+  See also \ref spatialpartitioning_kdtree_extending.
+
+  \include cpp/ponca_customize_kdtree.cpp
+*/

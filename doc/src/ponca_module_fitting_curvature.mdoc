@@ -1,0 +1,137 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+namespace Ponca
+{
+/*!
+  \page fitting_curvature_page Curvature estimation
+
+  \tableofcontents
+
+  \section fitting_curvature_intro Overview
+
+  At a point of a smooth surface, the curvature of the surface in a tangent direction is measured by the normal
+  curvature. Its extremal values are the *principal curvatures* \f$k_{\min} \leq k_{\max}\f$, reached along the
+  orthogonal *principal directions*. The *mean curvature* is \f$H = (k_{\min} + k_{\max}) / 2\f$ and the
+  *Gaussian curvature* is \f$K = k_{\min} k_{\max}\f$. On point clouds, these quantities can only be estimated over a
+  neighborhood: the estimates depend on the scale \f$t\f$ of the analysis.
+
+  %Ponca offers two families of estimators:
+  - scalar estimators, related to the mean curvature (or to its magnitude),
+  - curvature tensor estimators, which provide the principal curvatures and directions through the capability
+    Ponca::ProvidesPrincipalCurvatures: `kmin()`, `kmax()`, `kminDirection()`, `kmaxDirection()`, `kMean()` and
+    `GaussianCurvature()`.
+
+  Most of them are reviewed and compared by Arnal-Anger et al. \cite ArnalAnger:2026:Survey.
+
+  \section fitting_curvature Available estimators
+
+  | Estimator                                                          | Input              | Estimated quantity  | Definition |
+  |--------------------------------------------------------------------|--------------------|---------------------|------------|
+  | Distance to the PCA plane \cite Digne:2011:scalespacemeshing       | positions          | mean curvature (scaled by \f$t^2\f$, unsigned) | Ponca::Plane::potential() of: \snippet curvature_plane.cpp Curvature Estimator PCA plane |
+  | Surface variation \cite Pauly:2002:PSSimplification                | positions          | curvature magnitude | Ponca::CovarianceBase::surfaceVariation() of the same basket |
+  | Growing Least Squares \cite Mellado:2012:GLS                       | oriented points    | mean curvature      | Ponca::GLSParam::kappa() of `Basket<P, F, OrientedSphereFit, GLSParam>` |
+  | Normal derivatives of the PCA plane (PSS \cite Alexa:2001:Pss)     | positions          | curvature tensor    | \snippet curvature_plane.cpp Curvature Tensor PCA normals |
+  | Monge patch, quadratic height field (similar to jets \cite Cazals:2005:Jets) | positions | curvature tensor   | \snippet curvature_plane.cpp Curvature Estimator Monge Quadric |
+  | Monge patch, restricted quadratic height field                     | positions          | curvature tensor    | \snippet curvature_plane.cpp Curvature Estimator Monge Quadric Restricted |
+  | Algebraic Point Set Surfaces (APSS) \cite Guennebaud:2007:APSS     | oriented points    | curvature tensor    | \snippet fit_radius_curvature_center.cpp Curvature Estimator APSS |
+  | Algebraic Shape Operator (ASO) \cite Lejemble:2021:stable          | oriented points    | curvature tensor    | \snippet fit_radius_curvature_center.cpp Curvature Estimator ASO |
+  | Corrected Normal Current (CNC) \cite pointCloudCNC-sgp23           | oriented points    | curvature tensor    | \snippet cnc.cpp CNCFitType |
+
+  In these snippets, `FitSmoothOriented` stands for `Basket<Point, WeightSmoothFunc, OrientedSphereFit>`. The
+  tensor estimators are only available in 3D.
+
+  - The curvature tensor of the APSS is obtained from the spatial derivatives of the normal of the fitted sphere
+    (Ponca::OrientedSphereDer), and converted into principal curvatures by
+    Ponca::NormalDerivativeWeingartenEstimator and Ponca::WeingartenCurvatureEstimatorDer. The ASO additionally
+    accounts for the second order derivatives of the sphere (Ponca::MlsSphereFitDer), which makes it more stable
+    \cite Lejemble:2021:stable.
+  - Monge patches fit a height field over the PCA plane, and compute the curvatures from its fundamental forms
+    (Ponca::FundamentalFormWeingartenEstimator).
+  - CNC estimators build triangles from the neighbors and integrate the corrected normal current measures over them.
+    The template parameter selects how the triangles are generated (Ponca::TriangleGenerationMethod):
+    `UniformGeneration` and `IndependentGeneration` draw random triplets of neighbors, `HexagramGeneration` and
+    `AvgHexagramGeneration` build two triangles from six sectors around the evaluation point.
+
+  \warning In the current version, the curvatures obtained from the normal derivatives of the PCA plane
+  (Ponca::CovariancePlaneDer) are multiplied by the sum of the weights of the neighborhood (`getWeightSum()`); their
+  directions are not affected. This estimator is only tested on planar data.
+
+  \section fitting_curvature_usage Usage
+
+  Curvature tensor estimators are used as any other fit. With the ASO and a kd-tree:
+  \code
+  using Point      = Ponca::PointPositionNormal<double, 3>;
+  using VectorType = Point::VectorType;
+  using Filter     = Ponca::DistWeightFilter<Point, Ponca::SmoothWeightKernel<double>>;
+  using ASO        = Ponca::BasketDiff<Ponca::Basket<Point, Filter, Ponca::OrientedSphereFit>, Ponca::FitSpaceDer,
+                                       Ponca::OrientedSphereDer, Ponca::MlsSphereFitDer,
+                                       Ponca::NormalDerivativeWeingartenEstimator,
+                                       Ponca::WeingartenCurvatureEstimatorDer>;
+
+  Ponca::KdTreeDense<Point> tree(points);
+  for (const Point& point : tree.points())
+  {
+      ASO fit;
+      fit.setNeighborFilter({point.pos(), t});
+      if (fit.computeWithIds(tree.rangeNeighbors(point.pos(), t), tree.points()) == Ponca::STABLE)
+      {
+          double     k1 = fit.kmin(), k2 = fit.kmax();                    // principal curvatures, k1 <= k2
+          VectorType d1 = fit.kminDirection(), d2 = fit.kmaxDirection(); // principal directions
+          double     H  = fit.kMean(), K = fit.GaussianCurvature();
+      }
+  }
+  \endcode
+
+  Ponca::CNC is not a basket: its neighbor filter is constructed from a point, whose position is the evaluation
+  position and whose normal is used to orient the triangles. Its `computeWithIds` function takes a container of
+  indices (kd-tree queries must be copied first):
+  \code
+  using CNC = Ponca::CNC<Point, Ponca::HexagramGeneration>;
+
+  std::vector<int> neighbors;
+  for (int j : tree.rangeNeighbors(point.pos(), t))
+      neighbors.push_back(j);
+
+  CNC cnc;
+  cnc.setNeighborFilter({point, t}); // position and normal of the evaluation point, radius
+  if (cnc.computeWithIds(neighbors, tree.points()) == Ponca::STABLE)
+      std::cout << cnc.kmin() << " " << cnc.kmax() << " " << cnc.kMean() << std::endl;
+  \endcode
+  The CNC neighbor filter uses a constant weight (Ponca::ConstantWeightKernel) in the ball of radius \f$t\f$. As the
+  triangles of `UniformGeneration` and `IndependentGeneration` are drawn at random, two evaluations at the same point
+  give slightly different results.
+
+  \section fitting_curvature_sign Sign conventions
+
+  The sign of the curvatures depends on the orientation of the normals:
+  - for the estimators based on oriented points (GLS, APSS, ASO, CNC), the curvatures are positive when the surface
+    bends away from the normals. A sphere of radius \f$r\f$ sampled with outward normals has \f$\kappa = k_{\min} =
+    k_{\max} = 1/r\f$; with inward normals, all these values are negative;
+  - the estimators based on positions only rely on the normal of the PCA plane, whose orientation is arbitrary.
+    Monge patches use the opposite convention, relative to their normal `fit.primitiveGradient()`: a sphere gives
+    \f$-1/r\f$ when this normal points outward. To compare such estimates with a reference orientation \f$\mathbf{n}\f$,
+    flip the curvatures (and swap \f$k_{\min}\f$ and \f$k_{\max}\f$) when `fit.primitiveGradient().dot(n)` has the
+    wrong sign;
+  - unsigned quantities (surface variation, distance to the PCA plane) only measure the magnitude of the curvature.
+
+  The principal directions are tangent vectors, defined up to their sign. Normalize them before use: in the current
+  version, the directions computed through Ponca::NormalDerivativeWeingartenEstimator (APSS, ASO, PCA normal
+  derivatives) are not unit vectors (their norm is \f$\sqrt{3}\f$), whereas those of the Monge patches and of the CNC
+  estimators are.
+
+  \section fitting_curvature_scale Influence of the scale
+
+  An estimate at scale \f$t\f$ summarizes the geometry of the whole neighborhood. Small scales capture fine details but
+  are sensitive to noise and to the sampling, large scales are more robust but smooth the curvature out and bias it
+  on curved surfaces. Figure 1 shows the GLS curvature computed at two scales on the same object.
+
+  \image html buste.png "Figure 1. Mean curvature (GLSParam::kappa) computed at a fine (left) and a coarse (right) scale, and rendered with a simple color map (orange for concavities, blue for convexities)."
+
+  The scale-space behavior of the GLS parameters is studied with their scale derivatives, see
+  \ref fitting_derivatives.
+ */
+} // namespace Ponca

@@ -1,21 +1,73 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 namespace Ponca
 {
 
 /*!
-  \page common Common module: User Manual
-
-  <center>[\ref user_manual_page "Go back to user manual"]</center>
+  \page common Common module: user manual
 
   \tableofcontents
 
-  \section common_intro Overview of the proposed tools
+  \section common_intro Overview
 
-  - Datastructures: \ref limited_priority_queue, \ref Stack
-  - Macros handling Cuda/C++ compilation tricks: \ref Common/defines.h
-  - Debug and assertion tools: \ref Common/Assert.h
-  - Point data types : \ref PointPosition, \ref PointPositionNormal, \ref PointPositionNormalBinding, \ref PointPositionNormalLazyBinding
-  - Point generation method : \ref getRandomPoint, \ref getPointOnSphere, \ref getPointOnRectangularPlane, \ref getPointOnPlane, \ref getPointOnParaboloid
+  The Common module provides the general purpose classes and macros used by the other modules. Its main header,
+  `<Ponca/Common>`, is included by `<Ponca/Fitting>` and `<Ponca/SpatialPartitioning>`.
 
-  <center>[\ref user_manual_page "Go back to user manual"]</center>
+  | Topic                         | Content |
+  |-------------------------------|---------|
+  | Point types                   | Ponca::PointPosition, Ponca::PointPositionNormal, Ponca::PointPositionNormalBinding, Ponca::PointPositionNormalLazyBinding, see \ref points_utility |
+  | Point generation              | Ponca::getPointOnSphere, Ponca::getPointOnPlane, Ponca::getPointOnRectangularPlane, Ponca::getPointOnCircle, Ponca::getPointOnParaboloid, Ponca::getRandomPoint, see \ref ponca_points_generation |
+  | Containers                    | Ponca::LimitedPriorityQueue, Ponca::Stack, Ponca::BitSet, Ponca::HashSet |
+  | Concepts                      | Ponca::ProvidesCommonTypes, Ponca::IsPoint, Ponca::ProvidesNormal, Ponca::Is3D, Ponca::ValidCapacity, see \ref ponca_concepts |
+  | Multi-architecture macros     | `PONCA_MULTIARCH` and related macros, defined in `Ponca/src/Common/defines.h` |
+  | Assertions                    | `PONCA_ASSERT` and related macros, defined in `Ponca/src/Common/Assert.h` |
+  | Pre-instantiation             | the `Ponca::Instantiate` library, see \ref getting_started_installation_compilation_instantiate |
+
+  \section common_containers Containers
+
+  The spatial data structures need containers that can be used in CUDA kernels, where dynamic allocation is not
+  available. The Common module provides fixed-capacity containers for this purpose:
+
+  | Class                                         | Description |
+  |-----------------------------------------------|-------------|
+  | Ponca::LimitedPriorityQueue<T, N, Compare>    | sorted queue of capacity at most `N`: when it is full, an element is only inserted if it has a higher priority than the last one, which is then removed. Iterating over the queue visits the elements by decreasing priority. Used to collect the k nearest neighbors |
+  | Ponca::Stack<T, N>                            | stack of capacity `N`, used for the traversal of the kd-trees, and by the range queries of the neighbor graphs on the GPU |
+  | Ponca::BitSet<N>                              | set of indices in \f$[0, N)\f$, stored as one bit per index: constant time insertion and search, but the memory grows with `N` (125 KB for \f$N = 10^6\f$) |
+  | Ponca::HashSet<N>                             | set of at most `N` integers, stored in a hash table: constant time insertion and search in the best case; elements cannot be removed individually |
+
+  Ponca::BitSet and Ponca::HashSet share a set-like API, and replace `std::set` to store the visited indices in the
+  range queries of the neighbor graphs on the GPU (Ponca::NeighborGraphPointerTraits uses Ponca::HashSet), see
+  Ponca::NeighborGraphRangeQuery. They are declared in `Ponca/src/Common/Containers/bitset.h` and
+  `Ponca/src/Common/Containers/hashset.h`.
+
+  \section common_macros Multi-architecture macros
+
+  The same code is compiled for the CPU and for CUDA devices thanks to the following macros:
+
+  | Macro                                   | Effect |
+  |-----------------------------------------|--------|
+  | `PONCA_MULTIARCH`                       | expands to `__host__ __device__` with nvcc, and to nothing otherwise. Use it on every function that may be called from a kernel |
+  | `PONCA_MULTIARCH_HOST`                  | expands to `__host__` with nvcc: the function is only available on the host |
+  | `PONCA_MULTIARCH_STD_MATH(FUNC)`        | brings the math function `FUNC` (e.g. `sqrt`) in scope: `using std::FUNC` on the CPU, nothing with nvcc |
+  | `PONCA_MULTIARCH_CU_STD_FUNC(FUNC)`     | `using std::FUNC` on the CPU, `using cuda::std::FUNC` with nvcc (e.g. for `numeric_limits`) |
+  | `PONCA_MULTIARCH_INCLUDE_STD(FILE)`, `PONCA_MULTIARCH_INCLUDE_CU_STD(FILE)` | include the STL header `FILE`, or its CUDA counterpart |
+  | `PONCA_CPU_ARCH`, `PONCA_CUDA_ARCH`     | defined when compiling for the CPU only, or with nvcc |
+
+  The module also defines `M_PI` when it is not provided by the system.
+
+  \section common_assert Assertions
+
+  | Macro                                       | Behavior |
+  |---------------------------------------------|----------|
+  | `PONCA_ASSERT(EXPR)`, `PONCA_ASSERT_MSG(EXPR, MSG)` | if `EXPR` is false, print an error message and stop the program (always active) |
+  | `PONCA_ERROR`, `PONCA_ERROR_MSG(MSG)`       | print an error message and stop the program |
+  | `PONCA_DEBUG_ASSERT(EXPR)`, `PONCA_DEBUG_ASSERT_MSG(EXPR, MSG)`, `PONCA_DEBUG_ERROR(_MSG)` | same as above when `PONCA_DEBUG` is defined, no effect otherwise |
+
+  `PONCA_DEBUG` is defined for the targets of %Ponca (tests, examples) built in `Debug` or `RelWithDebInfo` mode.
+  Define it in your own project to enable the debug assertions of the library.
  */
 }

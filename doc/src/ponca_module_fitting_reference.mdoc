@@ -1,135 +1,217 @@
+/*
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
 namespace Ponca
 {
 /*!
- \page fittingreference Fitting Module: Reference Manual
+ \page fittingreference Fitting module: reference
+
  \tableofcontents
 
- This page provides a detailed list of what the Fitting module has to offers. 
+ This page lists what the Fitting module provides: fitting procedures, computational objects and their capabilities,
+ derivatives, neighbor filters, weight kernels, status codes and factory entries. The usage of these classes is
+ explained in the \ref fitting.
 
- \section fittingreference_primitiveoverview Fitting techniques Overview
-  
-  We provide various approaches to approximate, analyze or characterize the geometric properties of local neighborhoods.
-  In most situations, all these tools are based on the estimation of a geometric \ref PrimitiveBase "Primitive" approximating the neighborhood, on top of which we provide more advanced computations.
-  The table below summarizes the \ref PrimitiveBase "Primitives" available in the library, as well as the associated fitting techniques:
+ \section fittingreference_primitiveoverview Fitting procedures
 
-  Computed primitive| Required Input      | Fitting techniques                                                            |
-  ----------------- | ------------------- | ----------------------------------------------------------------------------- |
-  Line              | Points only         | CovarianceLineFitImpl (nD)                                                    |
-  Plane             | Points only         | CovariancePlaneFitImpl (nD)                                                   |
-  Plane             | Oriented points     | MeanPlaneFitImpl (nD, co-dimension 1)                                         |
-  MongePatch        | Points only         | MongePatchQuadraticFitImpl and MongePatchRestrictedQuadraticFitImpl (both 3D) |
-  AlgebraicSphere   | Points only         | SphereFitImpl (nD) \cite Guennebaud:2007:APSS                                 |
-  AlgebraicSphere   | Oriented points     | OrientedSphereFitImpl (nD) \cite Guennebaud:2007:APSS                         |
-  AlgebraicSphere   | Non-oriented points | UnorientedSphereFitImpl (nD) \cite Chen:2013:NOMG                             |
+ The fitting procedures approximate the neighborhood by a geometric primitive. They are used as the first
+ computational objects of a Ponca::Basket, e.g. `Basket<Point, Filter, OrientedSphereFit>`.
 
-  Ponca also provide methods to compute objects that are not geometric primitives, but provide other informations such
-   as curvatures:
+ | Procedure                               | Primitive              | Input                         | Dim. | Signed | CUDA | References |
+ |-----------------------------------------|------------------------|-------------------------------|------|--------|------|------------|
+ | Ponca::CovariancePlaneFit               | Ponca::Plane           | positions                     | any  | no     | yes  | \cite Pauly:2002:PSSimplification |
+ | Ponca::MeanPlaneFit                     | Ponca::Plane           | positions and normals         | any  | yes    | yes  | |
+ | Ponca::CovarianceLineFit                | Ponca::Line            | positions                     | any  | no     | yes  | |
+ | Ponca::SphereFit                        | Ponca::AlgebraicSphere | positions                     | any  | no     | no   | \cite Guennebaud:2007:APSS |
+ | Ponca::OrientedSphereFit                | Ponca::AlgebraicSphere | positions and normals         | any  | yes    | yes  | \cite Guennebaud:2007:APSS |
+ | Ponca::UnorientedSphereFit              | Ponca::AlgebraicSphere | positions and unoriented normals | any | no  | no   | \cite Chen:2013:NOMG |
+ | Ponca::MongePatchQuadraticFit           | Ponca::MongePatch      | positions                     | 3    | no     | no   | \cite Cazals:2005:Jets |
+ | Ponca::MongePatchRestrictedQuadraticFit | Ponca::MongePatch      | positions                     | 3    | no     | no   | \cite Cazals:2005:Jets |
 
-  Computed object   | Required Input      | Fitting techniques                                                    |
-  ----------------- | ------------------- | --------------------------------------------------------------------- |
-  Barycenter        | Points only         | MeanPosition (nD)                                                     |
-  Normal Vector     | Oriented points     | MeanNormal (nD, co-dimension 1)                                       |
-  Covariance Matrix | Points only         | CovarianceBase (nD)                                                |
-  Weingarten Map    | Points only         | FundamentalFormWeingartenEstimator (3D) via MongePatch                |
-  Weingarten Map    | Oriented points     | NormalDerivativeWeingartenEstimator (3D)                              |
+ - *Signed*: value of `fit.isSigned()`. When `false`, the orientation of the scalar field (and of its gradient) is
+   arbitrary: only its zero isosurface and the direction of its gradient are meaningful.
+ - *CUDA*: the procedure can be used in CUDA kernels (see \ref ponca_gpu_page).
+ - Ponca::CovariancePlaneFit is `CovariancePlaneFitImpl<CovarianceBase<MeanPosition<Plane>>>`, and similarly for the
+   other aliases; the `*Impl` classes can be used to build custom arrangements (see \ref fitting_multiprimitive).
+ - The scalar field of a primitive (its *potential*) is: the signed distance for Ponca::Plane, the squared distance
+   for Ponca::Line, the algebraic distance \f$u_c + \mathbf{u}_l^T\mathbf{x} + u_q\mathbf{x}^T\mathbf{x}\f$ for
+   Ponca::AlgebraicSphere, and the difference \f$h(u,v) - h\f$ between the height field and the height of the point
+   for Ponca::MongePatch.
 
- \section fittingreference_outputandcapabilities Capabilities of Fitting tools
- 
-  As described in \ref fitting_extensions_deps, The tool classes provides different kinds of compute capabilities.
-  To describe what a class requires, we use C++20 concepts. Each module has its own concepts file. For fitting 
-  tools and extensions, the requirements are described in this file: Fitting/concepts.h. For each concept, 
-  a cast operator is provided (typically first line). All subsequent operation should be valid, with the '->' 
-  further describing the return type.
+ Ponca::CNC is not a fitting procedure of a basket, but a compute object of its own, see \ref fitting_curvature.
 
-\section fitting_curvature Computing Curvatures
+ \section fittingreference_tools Other computational objects
 
-Ponca offers several ways to compute curvatures, most of which are reviewed and compared by Arnal-Anger et al. in \cite ArnalAnger:2026:Survey and listed in the table below:
+ | Class                                          | Computes                                                                 | Requires |
+ |------------------------------------------------|--------------------------------------------------------------------------|----------|
+ | Ponca::DryFit                                  | nothing (counts the neighbors; mostly useful for testing and benchmarks)  | |
+ | Ponca::MeanPosition                            | weighted barycenter of the neighbors                                     | |
+ | Ponca::MeanNormal                              | weighted mean of the normals                                             | points with normals |
+ | Ponca::CovarianceBase                          | covariance of the positions, its eigen decomposition and derived features | Ponca::MeanPosition |
+ | Ponca::GLSParam                                | Growing Least Squares parameters \f$\tau, \eta, \kappa\f$ \cite Mellado:2012:GLS | an algebraic sphere |
+ | Ponca::QuadraticHeightField, Ponca::RestrictedQuadraticHeightField | height field \f$h(u, v)\f$ over the tangent plane    | 3D, Ponca::HeightField |
+ | Ponca::FundamentalFormWeingartenEstimator     | first and second fundamental forms, Weingarten map                       | a Monge patch (3D) |
+ | Ponca::NormalDerivativeWeingartenEstimator    | Weingarten map from the spatial derivatives of the normal (BasketDiff)   | 3D, space derivatives |
+ | Ponca::WeingartenCurvatureEstimator, Ponca::WeingartenCurvatureEstimatorDer | principal curvatures and directions from a Weingarten map | 3D, a Weingarten map and a tangent plane basis |
 
-Estimator Name                                                 |   Estimated quantities   | Usage  |
--------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------- |
-Distance to PCA plane \cite Digne:2011:scalespacemeshing       | Mean curvature           | Method \ref Plane::potential "potential()" \snippet curvature_plane.cpp Curvature Estimator PCA plane |
-Surface Variation \cite Pauly:2002:PSSimplification            | Mean curvature           | Method \ref CovarianceBase::surfaceVariation "surfaceVariation()" \snippet curvature_plane.cpp Curvature Estimator PCA plane  |
-Growing Least Squares \cite Mellado:2012:GLS                   | Mean curvature           | `Basket<P,W,OrientedSphereFit,GLSParam> // method kappa()`                                                |
-Point Set Surfaces (PSS) \cite Alexa:2001:Pss                  | Curvature Tensor         | API of \ref internal::CurvatureEstimatorBase "CurvatureEstimatorBase" : \snippet curvature_plane.cpp Curvature Tensor PCA normals |
-Monge Patch fitting (comparable to jets fitting\cite Cazals:2005:Jets ) | Curvature Tensor         | API of \ref internal::CurvatureEstimatorBase "CurvatureEstimatorBase" using a QuadraticHeightField: \snippet curvature_plane.cpp Curvature Estimator Monge Quadric |
-Monge Patch fitting (comparable to jets fitting\cite Cazals:2005:Jets ) | Curvature Tensor         | API of \ref internal::CurvatureEstimatorBase "CurvatureEstimatorBase" using a RestrictedQuadraticHeightField: \snippet curvature_plane.cpp Curvature Estimator Monge Quadric Restricted |
-Algebraic Point Set Surfaces (APSS) \cite Guennebaud:2007:APSS | Curvature Tensor         | API of \ref internal::CurvatureEstimatorBase "CurvatureEstimatorBase": \snippet fit_radius_curvature_center.cpp Curvature Estimator APSS |
-Algebraic Shape Operator (ASO) \cite Lejemble:2021:stable      | Curvature Tensor         | API of \ref internal::CurvatureEstimatorBase "CurvatureEstimatorBase": \snippet fit_radius_curvature_center.cpp Curvature Estimator ASO|
+ \section fittingreference_outputandcapabilities Capabilities
 
+ Computational objects are described by the capabilities they provide, expressed as C++20 concepts defined in
+ `Ponca/src/Fitting/concepts.h`. Each capability gives access to a cast function, which returns the basket seen as the
+ class providing the capability, and guarantees that a set of functions is available:
 
-\image html buste.png "Figure 3. Example of mean curvature (GLSParam::kappa) computed at a fine (left) and a coarse (right) scale, and rendered with a simple color map (orange for concavities, blue for convexities)."
+ | Capability (concept)                        | Cast function           | Main functions                                                         | Provided by |
+ |---------------------------------------------|-------------------------|------------------------------------------------------------------------|-------------|
+ | Ponca::ProvidesProjectionOperator           | `projectionOperator()`  | `project(q)`                                                           | Ponca::Plane, Ponca::Line, Ponca::AlgebraicSphere, Ponca::MongePatch |
+ | Ponca::ProvidesImplicitPrimitive            | `implicitPrimitive()`   | `potential()`, `potential(q)`, `primitiveGradient()`, `primitiveGradient(q)`, `changeBasis(newCenter)`, and the projection | Ponca::Plane, Ponca::Line, Ponca::AlgebraicSphere, Ponca::MongePatch |
+ | Ponca::ProvidesPlane                        | `plane()`               | `setPlane(normal, position)`, and the API of `Eigen::Hyperplane` (`normal()`, `offset()`, ...) | Ponca::Plane |
+ | Ponca::ProvidesLine                         | `line()`                | `setLine(origin, direction)`, and the API of `Eigen::ParametrizedLine` (`origin()`, `direction()`, ...) | Ponca::Line |
+ | Ponca::ProvidesAlgebraicSphere              | `algebraicSphere()`     | `uc()`, `ul()`, `uq()`, `center()`, `radius()`, `isPlane()`, `prattNorm()`, `prattNorm2()`, `applyPrattNorm()`, `isNormalized()`, `isValid()`, `isApprox(other, eps)` | Ponca::AlgebraicSphere |
+ | Ponca::ProvidesMeanPosition                 | `meanPosition()`        | `barycenter()`, `barycenterDistance()`                                 | Ponca::MeanPosition |
+ | Ponca::ProvidesMeanNormal                   | `meanNormal()`          | `meanNormalVector()`                                                   | Ponca::MeanNormal |
+ | Ponca::ProvidesPositionCovariance           | `covarianceBase()`      | `solver()`, `lambda_0()`, `lambda_1()`, `lambda_2()`, `surfaceVariation()`, `planarity()`, `linearity()`, `sphericity()`, `anisotropy()`, `eigenentropy()` | Ponca::CovarianceBase |
+ | Ponca::ProvidesTangentPlaneBasis            | `tangentPlaneBasis()`   | `worldToTangentPlane(q, isPositionVector)`, `tangentPlaneToWorld(q, isPositionVector)` | Ponca::CovariancePlaneFitImpl, Ponca::NormalDerivativeWeingartenEstimator |
+ | Ponca::ProvidesGLSParam                     | `glsParam()`            | `tau()`, `eta()`, `kappa()`, `tau_normalized()`, `eta_normalized()`, `kappa_normalized()`, `fitness()`, `compareTo(other, useFitness)` | Ponca::GLSParam |
+ | Ponca::ProvidesHeightFieldBase              | `heightFieldBase()`     | access to the height and the \f$(u, v)\f$ coordinates of a local vector | Ponca::HeightField |
+ | Ponca::ProvidesHeightField                  | `heightField()`         | `height(u, v)`, `h_uu()`, `h_vv()`, `h_uv()`, `h_c()`, `dh_du(u, v)`, `dh_dv(u, v)`, `d2h_duu(u, v)`, `d2h_dvv(u, v)`, `d2h_duv(u, v)` | Ponca::QuadraticHeightField, Ponca::RestrictedQuadraticHeightField |
+ | Ponca::ProvidesMongePatch                   | `mongePatchPrimitive()` | the implicit primitive of the patch                                    | Ponca::MongePatch |
+ | Ponca::ProvidesFirstFondamentalFormComponents, Ponca::ProvidesSecondFondamentalFormComponents | `firstFondamentalFormComponent()`, `secondFondamentalFormComponent()` | `firstFundamentalFormComponents(E, F, G)`, `secondFundamentalFormComponents(L, M, N)` | Ponca::MongePatch |
+ | Ponca::ProvidesWeingartenMap                | (none)                  | `weingartenMap()`, `weingartenMap(W)`                                  | Ponca::FundamentalFormWeingartenEstimator, Ponca::NormalDerivativeWeingartenEstimator |
+ | Ponca::ProvidesMeanCurvature                | `meanCurvature()`       | `kMean()`                                                              | Ponca::AlgebraicSphere, Ponca::WeingartenCurvatureEstimator, Ponca::WeingartenCurvatureEstimatorDer, Ponca::CNC |
+ | Ponca::ProvidesPrincipalCurvatures          | `curvatureTensor()`     | `kmin()`, `kmax()`, `kminDirection()`, `kmaxDirection()`, `GaussianCurvature()`, `kMean()` | Ponca::WeingartenCurvatureEstimator, Ponca::WeingartenCurvatureEstimatorDer, Ponca::CNC |
 
-  \section fitting_filters Available filters
+ Notes on the outputs:
+ - Ponca::AlgebraicSphere::kMean() returns \f$2u_q\f$, which is the mean curvature only when the sphere is normalized
+   (see `applyPrattNorm()`); Ponca::GLSParam::kappa() applies the normalization.
+ - Ponca::GLSParam::eta() returns the gradient of the scalar field at the evaluation position, which is a unit vector
+   only on the fitted surface of a normalized sphere.
+ - `surfaceVariation()` returns \f$d\,\lambda_0 / \sum_i \lambda_i\f$, where \f$d\f$ is the dimension and
+   \f$\lambda_0 \leq \lambda_1 \leq \dots\f$ the eigenvalues of the covariance; `planarity()`, `linearity()` and
+   `sphericity()` are only valid in 3D \cite Guinard:2017.
+ - Ponca::CovariancePlaneFitImpl::worldToTangentPlane returns the coordinates \f$(h, u, v)\f$ of a vector in the
+   basis formed by the normal (first) and the tangent directions of the plane, relatively to the evaluation position;
+   Ponca::CovariancePlaneFitImpl::tangentPlaneToWorld is its inverse.
 
-  <table>
-    <tr>
-      <th>Class name</th>
-      <th>Parameters</th>
-      <th>Documentation</th>
-    </tr>
-    <tr> 
-      <td>DistWeightFilter</td>
-      <td>Eval location: p, Radius: t</td>
-      <td>Filter points further than t, and weigh them according to kernel (\ref fitting_kernel) </td>
-    </tr>
-    <tr> 
-      <td> NoWeightFilter</td>
-      <td>Eval location: p</td>
-      <td>Constant kernel for every point. Does not check for radius unlike DistWeightFilter with contant kernel. Transform neighbors to local frame.</td>
-    </tr>
-    <tr>
-      <td>NoWeightFilterGlobal</td>
-      <td>Eval location: p</td>
-      <td>Constant kernel for every point. Does not check for radius unlike DistWeightFilter with contant kernel. Keep neighbors coordinates in global frame</td>
-    </tr>
-    <tr> 
-      <td>NeighborFilterStoreNormal</td>
-      <td>Eval location: p, Radius: t, Normal: n</td>
-      <td>Stores normal. It extends another filter as template param</td>
-    </tr>
-  </table>
+ \section fittingreference_derivatives Derivatives
 
-  \section fitting_kernel Available Weighting kernel
+ The following classes are used in a Ponca::BasketDiff (see \ref fitting_derivatives). Derivatives are stored with the
+ layout described in \ref fitting_derivatives_layout.
 
-  During any computation, each neighbor can be weighted by an amount defined by \f$w(x) = \phi\left(\frac{||x - p||}{r}\right)\f$, where \f$p\f$ is the evaluation location and \f$r\f$ is the radius. 
-  This sections list the different function \f$\phi\f$ available in Ponca.
+ | Capability (concept)                         | Cast function            | Main functions                         | Provided by |
+ |----------------------------------------------|--------------------------|----------------------------------------|-------------|
+ | Ponca::ProvidesImplicitPrimitiveDerivative   | `implicitPrimitiveDer()` | `dPotential()`, `dNormal()`            | Ponca::CovariancePlaneDer (3D), Ponca::OrientedSphereDer, Ponca::UnorientedSphereDer, Ponca::MlsSphereFitDer |
+ | Ponca::ProvidesMeanPositionDerivative        | `meanPositionDer()`      | `barycenterDerivatives()`              | Ponca::MeanPositionDer |
+ | Ponca::ProvidesMeanNormalDer                 | `meanNormalDer()`        | `dMeanNormal()`                        | Ponca::MeanNormalDer |
+ | Ponca::ProvidesPositionCovarianceDer         | `covarianceDer()`        | derivatives of the covariance (internal) | Ponca::CovarianceDer |
+ | Ponca::ProvidesCovariancePlaneDer            | `covariancePlaneDer()`   | `dPotential()`, `dNormal()`            | Ponca::CovariancePlaneDer |
+ | Ponca::ProvidesGeomVar                       | `geomVar()`              | `geomVar(wtau, weta, wkappa)`          | Ponca::GLSDer (scale derivatives) |
+ | (GLS derivatives)                            | `glsDer()`               | `dtau()`, `deta()`, `dkappa()`, `dtau_normalized()`, `deta_normalized()`, `dkappa_normalized()` | Ponca::GLSDer |
 
-  <table>
-      <tr>
-        <th>Class</th>
-        <th>Expression</th>
-      </tr>
+ Ponca::OrientedSphereDer and Ponca::UnorientedSphereDer also provide `algebraicSphereDer()`, and the derivatives of
+ the parameters of the sphere (`m_dUc`, `m_dUl`, `m_dUq`).
 
-      <tr>
-        <td>ConstantWeightKernel&lt;_Scalar&gt;</td>
-        <td>\f$\phi(x) = 1\f$</td>
-      </tr>
-      <tr>
-        <td>SmoothWeightKernel&lt;_Scalar&gt;</td>
-        <td>\f$\phi(x) = (x^2 - 1)^2\f$</td>
-      </tr>
-      <tr>
-        <td>PolynomialSmoothWeightKernel&lt;_Scalar, m, n&gt;</td>
-        <td>\f$\phi(x) = (x^n - 1)^m\f$</td>
-      </tr>
-      <tr>
-        <td>WendlandWeightKernel&lt;_Scalar&gt;</td>
-        <td>\f$\phi(x) = (1 - x)^4(4x + 1)\f$</td>
-      </tr>
-      <tr>
-        <td>SingularWeightKernel&lt;_Scalar&gt;</td>
-        <td>\f$\phi(x) = \frac{1}{x^2}\f$</td>
-      </tr>
-      <tr>
-        <td>CompactExpWeightKernel&lt;_Scalar&gt;</td>
-        <td>\f$\phi(x) = \exp\left(\frac{-x^2}{1 - x^2}\right)\f$</td>
-      </tr>
-      <tr>
-        <td>GaussianWeightKernel&lt;_Scalar&gt;</td>
-        <td>\f$\phi(x) = \exp\left(-\frac{1}{2}x^2\right)\f$</td>
-      </tr>
-  </table>
+ \section fittingreference_curvature Curvature estimators
 
+ | Estimator                         | Type definition                                                              | Quantities |
+ |-----------------------------------|------------------------------------------------------------------------------|------------|
+ | Surface variation, PCA distance   | `Basket<P, F, CovariancePlaneFit>`                                           | `surfaceVariation()`, `potential()` |
+ | Growing Least Squares             | `Basket<P, F, OrientedSphereFit, GLSParam>`                                  | `kappa()`  |
+ | PCA normal derivatives            | `BasketDiff<Basket<P, F, CovariancePlaneFit>, FitSpaceDer, CovariancePlaneDer, NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>` | tensor |
+ | Monge patches                     | `Basket<P, F, MongePatchQuadraticFit>`, `Basket<P, F, MongePatchRestrictedQuadraticFit>` | tensor |
+ | APSS                              | `BasketDiff<Basket<P, F, OrientedSphereFit>, FitSpaceDer, OrientedSphereDer, NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>` | tensor |
+ | ASO                               | `BasketDiff<Basket<P, F, OrientedSphereFit>, FitSpaceDer, OrientedSphereDer, MlsSphereFitDer, NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>` | tensor |
+ | CNC                               | `CNC<P, UniformGeneration>`, `CNC<P, IndependentGeneration>`, `CNC<P, HexagramGeneration>`, `CNC<P, AvgHexagramGeneration>` | tensor |
 
+ "Tensor" stands for the capability Ponca::ProvidesPrincipalCurvatures. Their usage, sign conventions and references
+ are given in \ref fitting_curvature_page.
+
+ \section fitting_filters Neighbor filters
+
+ | Class                                                        | Construction                         | Frame      | Weight of \f$\mathbf{q}\f$ | `evalScale()` |
+ |--------------------------------------------------------------|--------------------------------------|------------|----------------------------|---------------|
+ | Ponca::DistWeightFilter<DataPoint, WeightKernel>             | `{p, t}` or `{point, t}`             | centered   | \f$\phi(\|\mathbf{q}-\mathbf{p}\|/t)\f$, 0 beyond \f$t\f$ for compact kernels | \f$t\f$ |
+ | Ponca::NoWeightFilter<DataPoint>                             | `{p}` (a scale is accepted and ignored) | centered | 1                          | 1             |
+ | Ponca::NoWeightFilterGlobal<DataPoint>                       | default (parameters are ignored)     | global     | 1                          | 1             |
+ | Ponca::FilterWithAttributes<DataPoint, DataType, Filter, Converter> | `{p, t, data}` or `{point, t}` (then `data = Converter(point)`) | as `Filter` | as `Filter` | as `Filter` |
+
+ - Ponca::DistWeightFilter assumes \f$t > 0\f$ (this is not checked).
+ - The derivatives of the weight (`scaledw`, `spacedw`, ...) are computed from the derivatives of the kernel for
+   Ponca::DistWeightFilter, and are null for the other filters.
+ - Ponca::FilterWithAttributes stores an additional attribute, available with `data()`. Ponca::CNC uses it to store
+   the normal of the evaluation point, with a Ponca::DistWeightFilter and a constant kernel.
+
+ \section fitting_kernel Weight kernels
+
+ Ponca::DistWeightFilter weights a neighbor at distance \f$d\f$ from the evaluation position by \f$\phi(x)\f$, with
+ \f$x = d/t\f$, where \f$p\f$ is the evaluation location and \f$t\f$ the scale:
+
+ | Class                                          | \f$\phi(x)\f$                                         | Compact | `df` | `ddf` | Notes |
+ |------------------------------------------------|-------------------------------------------------------|---------|------|-------|-------|
+ | Ponca::ConstantWeightKernel<Scalar>            | \f$c\f$ (1 by default, see `setValue`)                 | yes     | yes  | yes   | uniform weights in the ball |
+ | Ponca::SmoothWeightKernel<Scalar>              | \f$(x^2-1)^2\f$                                        | yes     | yes  | yes   | default choice |
+ | Ponca::PolynomialSmoothWeightKernel<Scalar, m, n> | \f$(x^n-1)^m\f$                                     | yes     | yes  | yes   | negative on \f$[0,1)\f$ for odd \f$m\f$; in the current version, `df` is only exact for \f$n = 2\f$ |
+ | Ponca::WendlandWeightKernel<Scalar>            | \f$(1-x)^4(4x+1)\f$                                    | yes     | yes  | yes   | \cite Alexa:2009:Hermite |
+ | Ponca::SingularWeightKernel<Scalar>            | \f$1/x^2\f$                                            | yes     | yes  | yes   | infinite at \f$x = 0\f$: the evaluation position must not coincide with a point |
+ | Ponca::CompactExpWeightKernel<Scalar>          | \f$\exp\left(\frac{-x^2}{1-x^2}\right)\f$              | yes     | yes  | no    | \f$C^\infty\f$ |
+ | Ponca::GaussianWeightKernel<Scalar>            | \f$\exp\left(-\frac{x^2}{2}\right)\f$                  | no      | yes  | yes   | standard deviation \f$t\f$; \f$\phi(1) \approx 0.6\f$ |
+
+ *Compact* kernels vanish for \f$x \geq 1\f$: Ponca::DistWeightFilter then gives a null weight to the points farther
+ than \f$t\f$. The columns `df` and `ddf` tell whether the first and second derivatives are valid (flags `isDValid`
+ and `isDDValid`), which is required to compute first and second order derivatives of the fits.
+
+ \section fittingreference_status Fit status
+
+ The status codes are described in \ref fitting_Checkstatus. They are set as follows:
+
+ | Class                                         | Rule |
+ |-----------------------------------------------|------|
+ | Ponca::BasketUnitBase (all baskets)           | Ponca::UNDEFINED when no neighbor has a positive weight, Ponca::STABLE otherwise |
+ | Ponca::CovarianceBase                         | Ponca::UNDEFINED with fewer than `Dim` neighbors, or when the eigen decomposition fails |
+ | Ponca::SphereFit, Ponca::OrientedSphereFit, Ponca::UnorientedSphereFit | Ponca::UNDEFINED with fewer than `Dim` neighbors, Ponca::UNSTABLE with fewer than \f$2\times\f$`Dim` neighbors |
+ | Ponca::OrientedSphereFit                      | Ponca::UNDEFINED when the weighted spread of the positions vanishes (e.g. all the neighbors at the same position) |
+ | Ponca::MongePatchQuadraticFit, Ponca::MongePatchRestrictedQuadraticFit | Ponca::NEED_OTHER_PASS after the first pass if the plane is stable, then Ponca::STABLE |
+ | Ponca::CNC                                    | Ponca::UNDEFINED when no neighbor lies in the ball or when the total area of the triangles is null |
+ | All fitting procedures                        | Ponca::CONFLICT_ERROR_FOUND when their primitive has already been computed by another class |
+
+ Derivative extensions return the status of the basket they differentiate.
+
+ \section fittingreference_schemes Evaluation schemes and projection operators
+
+ | Class                                         | Description |
+ |-----------------------------------------------|-------------|
+ | Ponca::SingleEvaluationScheme                 | performs a single fit |
+ | Ponca::MLSEvaluationScheme<Scalar>            | iterates fits and projections until convergence (MLS projection), see \ref evaluation_schemes |
+ | Ponca::DirectProjectionOperator               | projection given by the primitive (`project`) |
+ | Ponca::GradientDescentProjectionOperator      | moves the point along the gradient of the scalar field (16 steps by default) |
+
+ \section fittingreference_factory Factory entries
+
+ Ponca::Factory<Point, Filter, DiffType> lists the following compute objects, retrieved by name with
+ `GetMethod<"name">()` (see \ref fitting_factory):
+
+ | Name                              | Compute object                                                      | Availability |
+ |-----------------------------------|---------------------------------------------------------------------|--------------|
+ | `DryFit`                          | `Basket<P, NF, DryFit>`                                             | all          |
+ | `MeanPosition`                    | `Basket<P, NF, MeanPosition>`                                       | all          |
+ | `MeanNormal`                      | `Basket<P, NF, MeanNormal>`                                         | all          |
+ | `CovarianceLineFit`               | `Basket<P, NF, CovarianceLineFit>`                                  | all          |
+ | `CovariancePlaneFit`              | `Basket<P, NF, CovariancePlaneFit>`                                 | all          |
+ | `SphereFit`                       | `Basket<P, NF, SphereFit>`                                          | all          |
+ | `MeanPlaneFit`                    | `Basket<P, NF, MeanPlaneFit>`                                       | all          |
+ | `APSS`                            | `Basket<P, NF, OrientedSphereFit, GLSParam>`                        | all          |
+ | `UnorientedAPSS`                  | `Basket<P, NF, UnorientedSphereFit, GLSParam>`                      | all, except with nvcc |
+ | `MongePatchQuadratic`             | `Basket<P, NF, MongePatchQuadraticFit>`                             | 3D           |
+ | `MongePatchRestrictedQuadratic`   | `Basket<P, NF, MongePatchRestrictedQuadraticFit>`                   | 3D           |
+ | `CNCUniform`, `CNCIndependent`, `CNCHexagram`, `CNCAvgHexagram` | `CNC<P, UniformGeneration>`, ...      | 3D           |
+ | `ASO`                             | `BasketDiff<Basket<P, NF, OrientedSphereFit, GLSParam>, DiffType, OrientedSphereDer, MlsSphereFitDer, NormalDerivativeWeingartenEstimator, WeingartenCurvatureEstimatorDer>` | 3D, `DiffType` containing Ponca::FitSpaceDer |
+
+ Note that the CNC entries ignore the neighbor filter type `NF`: they use their own filter. The predicates available
+ to filter the lists are `XXXProvider` and `NotXXXProvider` for `XXX` in: `Derivatives`, `ProjectionOperator`,
+ `ImplicitPrimitive`, `AlgebraicSphere`, `MeanPosition`, `MeanNormal`, `GLSParam`, `GeomVar`, `Plane`, `Line`,
+ `HeightField`, `MongePatch`, `PositionCovariance`, `PrincipalCurvatures`, `TangentPlaneBasis` and `MeanCurvature`
+ (the corresponding concepts are named `ProvidesXXX`).
  */
 } // namespace Ponca

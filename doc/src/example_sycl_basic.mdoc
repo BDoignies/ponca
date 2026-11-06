@@ -8,7 +8,18 @@
 /*!
   \page example_sycl_basic_page Fitting in SYCL kernels
 
-  This is an example of how to use Ponca Fitting library in SYCL kernels.
+  This example fits a plane (Ponca::MeanPlaneFit) at every point of a planar point cloud in a SYCL kernel: the points
+  are copied to device memory, and each work-item of a `parallel_for` iterates over all the points to compute the
+  potential of the fitted plane at its point.
+
+  The example is compiled when <a href="https://adaptivecpp.github.io/" target="_blank">AdaptiveCpp</a> is found by
+  CMake:
+  \code{.sh}
+  cmake --build build --target ponca_basic_sycl
+  ./build/examples/sycl/ponca_basic_sycl
+  \endcode
+
+  See also \ref ponca_gpu_sycl.
 
   \include sycl/ponca_basic_sycl.cpp
 */
