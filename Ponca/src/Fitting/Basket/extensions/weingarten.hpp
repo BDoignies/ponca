@@ -111,7 +111,8 @@ namespace Ponca
 
             MatrixType dN = Base::dNormal().template middleCols<DataPoint::Dim>(Base::isScaleDer() ? 1 : 0);
 
-            VectorType n = Base::primitiveGradient(Base::getNeighborFilter().center());
+            // Make sure m_tangentBasis is orthonormal
+            VectorType n = Base::primitiveGradient(Base::getNeighborFilter().center()).normalized();
             n.array().abs().minCoeff(&i0); // i0: dimension where n extends the least
             i1 = (i0 + 1) % 3;
             i2 = (i0 + 2) % 3;
@@ -172,7 +173,7 @@ namespace Ponca
     NormalDerivativeWeingartenEstimator<DataPoint, _NFilter, DiffType, T>::worldToTangentPlane(
         const VectorType& _q, bool _isPositionVector) const
     {
-        return m_tangentBasis.normalized().transpose() *
+        return m_tangentBasis.transpose() *
                Base::getNeighborFrame().convertToLocalBasis(_q, _isPositionVector);
     }
 
@@ -182,7 +183,7 @@ namespace Ponca
     NormalDerivativeWeingartenEstimator<DataPoint, _NFilter, DiffType, T>::tangentPlaneToWorld(
         const VectorType& _lq, bool _isPositionVector) const
     {
-        return Base::getNeighborFrame().convertToGlobalBasis(m_tangentBasis.normalized().transpose().inverse() * _lq,
+        return Base::getNeighborFrame().convertToGlobalBasis(m_tangentBasis * _lq,
                                                              _isPositionVector);
     }
 
