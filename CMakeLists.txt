@@ -175,8 +175,8 @@ endif(PONCA_CONFIGURE_TESTS)
 ################################################################################
 # Add custom target for Continuous Integration scripts                         #
 ################################################################################
-add_custom_target(ponca-ci SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/.github/workflows/ContinuousTest.yml
-    ${CMAKE_CURRENT_SOURCE_DIR}/.github/workflows/deployDoc.yml
-    ${CMAKE_CURRENT_SOURCE_DIR}/.github/workflows/testAsSubmodule.yml
-    ${CMAKE_CURRENT_SOURCE_DIR}/.github/workflows/Coverage.yml)
+# add_custom_target(ponca-ci SOURCES
+#     ${CMAKE_CURRENT_SOURCE_DIR}/.github/workflows/ContinuousTest.yml
+#     ${CMAKE_CURRENT_SOURCE_DIR}/.github/workflows/deployDoc.yml
+#     ${CMAKE_CURRENT_SOURCE_DIR}/.github/workflows/testAsSubmodule.yml
+#     ${CMAKE_CURRENT_SOURCE_DIR}/.github/workflows/Coverage.yml)
