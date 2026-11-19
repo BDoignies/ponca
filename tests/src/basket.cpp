@@ -41,9 +41,6 @@ typename DataPoint::Scalar generateData(KdTree<DataPoint>& tree)
 
     vector<DataPoint> vectorPoints(nbPoints);
 
-#ifdef NDEBUG
-#    pragma omp parallel for
-#endif
     for (int i = 0; i < int(vectorPoints.size()); ++i)
     {
         vectorPoints[i] = getPointOnSphere<DataPoint>(radius, center, false, false, false);
