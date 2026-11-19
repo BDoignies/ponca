@@ -70,7 +70,7 @@ namespace Ponca
         /*! \brief Solver used to analyse the covariance matrix*/
         using Solver = Eigen::SelfAdjointEigenSolver<MatrixType>;
 
-    protected:
+    public:
         // computation data
         MatrixType m_cov{MatrixType::Zero()}; /*!< \brief Covariance matrix */
         Solver m_solver;                      /*!<\brief Solver used to analyse the covariance matrix */
@@ -153,7 +153,7 @@ namespace Ponca
         PONCA_FITTING_DECLARE_DEFAULT_TYPES
         PONCA_FITTING_DECLARE_MATRIX_TYPE
         PONCA_FITTING_DECLARE_DEFAULT_DER_TYPES
-    protected:
+    public:
         /// Computation data: derivatives of the covariance matrix
         MatrixType m_dCov[Base::NbDerivatives];
 

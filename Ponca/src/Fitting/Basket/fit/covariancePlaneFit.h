@@ -95,7 +95,7 @@ namespace Ponca
         PONCA_FITTING_DECLARE_DEFAULT_TYPES
         PONCA_FITTING_DECLARE_MATRIX_TYPE
         PONCA_FITTING_DECLARE_DEFAULT_DER_TYPES
-    private:
+    public:
         VectorArray m_dNormal{VectorArray::Zero()}; /*!< \brief Derivatives of the hyper-plane normal */
         ScalarArray m_dDist{ScalarArray::Zero()};   /*!< \brief Derivatives of the MLS scalar field */
 

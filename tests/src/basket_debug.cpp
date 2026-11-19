@@ -16,6 +16,7 @@
 
 #include <Ponca/Fitting>
 #include <vector>
+#include <iomanip>
 
 using namespace std;
 using namespace Ponca;
@@ -63,9 +64,6 @@ void testBasicFunctionalities(const KdTree<typename Fit::DataPoint>& tree, typen
     int size = QUICK_TESTS ? 1 : int(vectorPoints.size());
 
     // Test for each point if the fitted sphere correspond to the theoretical sphere
-#ifdef NDEBUG
-#    pragma omp parallel for
-#endif
     for (int i = 0; i < size; ++i)
     {
         const auto& fitInitPos = vectorPoints[i].pos();
@@ -90,6 +88,69 @@ void testBasicFunctionalities(const KdTree<typename Fit::DataPoint>& tree, typen
         // also test comparison operators
         VERIFY(fit == fit);
         VERIFY(fit1 == fit1);
+
+        #pragma omp critical
+        {
+            std::cout << std::setprecision(20);
+            std::cout << "Dumping results: \n";
+            
+            auto print = [&](const auto& fit) {
+                std::cout << "N" << std::endl;
+                std::cout << fit.m_nbNeighbors << std::endl;
+
+                std::cout << "W" << std::endl;
+                std::cout << fit.m_sumW << std::endl;
+
+                std::cout << "dW" << std::endl;
+                std::cout << fit.m_dSumW << std::endl;
+
+                std::cout << "Cov" << std::endl;
+                std::cout << fit.m_cov << std::endl;
+
+                std::cout << "Cov" << std::endl;
+                std::cout << fit.m_cov << std::endl;
+
+                std::cout << "Normal:\n";
+                std::cout << fit.m_dNormal << std::endl;
+                
+                std::cout << "Dist: \n";
+                std::cout << fit.m_dDist << std::endl;
+
+                std::cout << "DCov: \n";
+                std::cout << fit.m_dCov[0] << std::endl;
+            };
+            
+            std::cout << "Fit:\n";
+            print(fit);
+            // std::cout << "Fit1:\n";
+            // print(fit1);
+
+            std::cout << "Diff: \n";            
+            auto printDiff = [&](const auto& fit, const auto& fit1) {
+                std::cout << "===================================" << std::endl;
+                std::cout << "N" << std::endl;
+                std::cout << (fit.m_nbNeighbors - fit1.m_nbNeighbors) << std::endl;
+
+                std::cout << "W" << std::endl;
+                std::cout << (fit.m_sumW - fit1.m_sumW) << std::endl;
+
+                std::cout << "dW" << std::endl;
+                std::cout << (fit.m_dSumW - fit1.m_dSumW) << std::endl;
+
+                std::cout << "Cov" << std::endl;
+                std::cout << (fit.m_cov - fit1.m_cov) << std::endl;
+
+                std::cout << "Normal:\n";
+                std::cout << (fit.m_dNormal - fit1.m_dNormal) << std::endl;
+                
+                std::cout << "Dist: \n";
+                std::cout << (fit.m_dDist - fit1.m_dDist) << std::endl;
+
+                std::cout << "DCov: \n";
+                std::cout << (fit.m_dCov[0] - fit1.m_dCov[0]) << std::endl;
+            };
+            printDiff(fit, fit1);
+        }
         VERIFY(fit == fit1);
         VERIFY(fit1 == fit);
         VERIFY(!(fit != fit));
@@ -188,6 +249,12 @@ void callSubTests()
 
     for (int i = 0; i < g_repeat; ++i)
     {
+        std::cout << "=======================" << i << "=======================" << std::endl;
+        CALL_SUBTEST((testBasicFunctionalities<PlaneScaleDiff>(tree, scale)));
+    }
+        
+    /* for (int i = 0; i < g_repeat; ++i)
+    {
         // Single Primitive
         CALL_SUBTEST((testBasicFunctionalities<TestPlane>(tree, scale)));
         CALL_SUBTEST((testBasicFunctionalities<Sphere>(tree, scale)));
@@ -234,6 +301,9 @@ void callSubTests()
         CALL_SUBTEST((testIsSame<PlaneSpaceDiff, HybridSpaceDiff>(tree, scale, checkIsSamePlaneDerivative)));
         CALL_SUBTEST((testIsSame<PlaneScaleSpaceDiff, HybridScaleSpaceDiff>(tree, scale, checkIsSamePlaneDerivative)));
     }
+        */
+
+
 }
 
 int main(int argc, char** argv)
@@ -242,6 +312,8 @@ int main(int argc, char** argv)
     {
         return EXIT_FAILURE;
     }
+    // 1795101242
+    // 1795102289
     set_seed_from_string("1795094228");
 
 

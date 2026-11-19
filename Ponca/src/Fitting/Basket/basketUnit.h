@@ -31,7 +31,7 @@ namespace Ponca
         using NeighborFilter = _NFilter;                       /*!< \brief Filter applied on each neighbor*/
         using NeighborFrame  = typename NeighborFilter::NeighborhoodFrame;
 
-    private:
+    public:
         //! \brief Number of neighbors
         int m_nbNeighbors{0};
 
@@ -169,7 +169,7 @@ namespace Ponca
         /*! \brief Static array of scalars with a size adapted to the differentiation type */
         using ScalarArray = Eigen::Matrix<Scalar, 1, NbDerivatives>;
 
-    protected:
+    public:
         // computation data
         ScalarArray m_dSumW{ScalarArray::Zero()}; /*!< \brief Sum of weight derivatives */
 
