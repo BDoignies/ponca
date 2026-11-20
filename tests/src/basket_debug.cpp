@@ -89,67 +89,70 @@ void testBasicFunctionalities(const KdTree<typename Fit::DataPoint>& tree, typen
         VERIFY(fit == fit);
         VERIFY(fit1 == fit1);
 
-        #pragma omp critical
+#pragma omp critical
         {
-            std::cout << std::setprecision(20);
-            std::cout << "Dumping results: \n";
-            
-            auto print = [&](const auto& fit) {
-                std::cout << "N" << std::endl;
-                std::cout << fit.m_nbNeighbors << std::endl;
+            if (!(fit == fit1))
+            {
+                std::cout << std::setprecision(20);
+                std::cout << "Dumping results: \n";
 
-                std::cout << "W" << std::endl;
-                std::cout << fit.m_sumW << std::endl;
+                auto print = [&](const auto& fit) {
+                    std::cout << "N" << std::endl;
+                    std::cout << fit.m_nbNeighbors << std::endl;
 
-                std::cout << "dW" << std::endl;
-                std::cout << fit.m_dSumW << std::endl;
+                    std::cout << "W" << std::endl;
+                    std::cout << fit.m_sumW << std::endl;
 
-                std::cout << "Cov" << std::endl;
-                std::cout << fit.m_cov << std::endl;
+                    std::cout << "dW" << std::endl;
+                    std::cout << fit.m_dSumW << std::endl;
 
-                std::cout << "Cov" << std::endl;
-                std::cout << fit.m_cov << std::endl;
+                    std::cout << "Cov" << std::endl;
+                    std::cout << fit.m_cov << std::endl;
 
-                std::cout << "Normal:\n";
-                std::cout << fit.m_dNormal << std::endl;
-                
-                std::cout << "Dist: \n";
-                std::cout << fit.m_dDist << std::endl;
+                    std::cout << "Cov" << std::endl;
+                    std::cout << fit.m_cov << std::endl;
 
-                std::cout << "DCov: \n";
-                std::cout << fit.m_dCov[0] << std::endl;
-            };
-            
-            std::cout << "Fit:\n";
-            print(fit);
-            // std::cout << "Fit1:\n";
-            // print(fit1);
+                    std::cout << "Normal:\n";
+                    std::cout << fit.m_dNormal << std::endl;
 
-            std::cout << "Diff: \n";            
-            auto printDiff = [&](const auto& fit, const auto& fit1) {
-                std::cout << "===================================" << std::endl;
-                std::cout << "N" << std::endl;
-                std::cout << (fit.m_nbNeighbors - fit1.m_nbNeighbors) << std::endl;
+                    std::cout << "Dist: \n";
+                    std::cout << fit.m_dDist << std::endl;
 
-                std::cout << "W" << std::endl;
-                std::cout << (fit.m_sumW - fit1.m_sumW) << std::endl;
+                    std::cout << "DCov: \n";
+                    std::cout << fit.m_dCov[0] << std::endl;
+                };
 
-                std::cout << "dW" << std::endl;
-                std::cout << (fit.m_dSumW - fit1.m_dSumW) << std::endl;
+                std::cout << "Fit:\n";
+                print(fit);
+                // std::cout << "Fit1:\n";
+                // print(fit1);
 
-                std::cout << "Cov" << std::endl;
-                std::cout << (fit.m_cov - fit1.m_cov) << std::endl;
+                std::cout << "Diff: \n";
+                auto printDiff = [&](const auto& fit, const auto& fit1) {
+                    std::cout << "===================================" << std::endl;
+                    std::cout << "N" << std::endl;
+                    std::cout << (fit.m_nbNeighbors - fit1.m_nbNeighbors) << std::endl;
 
-                std::cout << "Normal:\n";
-                std::cout << (fit.m_dNormal - fit1.m_dNormal) << std::endl;
-                
-                std::cout << "Dist: \n";
-                std::cout << (fit.m_dDist - fit1.m_dDist) << std::endl;
+                    std::cout << "W" << std::endl;
+                    std::cout << (fit.m_sumW - fit1.m_sumW) << std::endl;
 
-                std::cout << "DCov: \n";
-                std::cout << (fit.m_dCov[0] - fit1.m_dCov[0]) << std::endl;
-            };
-            printDiff(fit, fit1);
+                    std::cout << "dW" << std::endl;
+                    std::cout << (fit.m_dSumW - fit1.m_dSumW) << std::endl;
+
+                    std::cout << "Cov" << std::endl;
+                    std::cout << (fit.m_cov - fit1.m_cov) << std::endl;
+
+                    std::cout << "Normal:\n";
+                    std::cout << (fit.m_dNormal - fit1.m_dNormal) << std::endl;
+
+                    std::cout << "Dist: \n";
+                    std::cout << (fit.m_dDist - fit1.m_dDist) << std::endl;
+
+                    std::cout << "DCov: \n";
+                    std::cout << (fit.m_dCov[0] - fit1.m_dCov[0]) << std::endl;
+                };
+                printDiff(fit, fit1);
+            }
         }
         VERIFY(fit == fit1);
         VERIFY(fit1 == fit);
@@ -252,7 +255,7 @@ void callSubTests()
         std::cout << "=======================" << i << "=======================" << std::endl;
         CALL_SUBTEST((testBasicFunctionalities<PlaneScaleDiff>(tree, scale)));
     }
-        
+
     /* for (int i = 0; i < g_repeat; ++i)
     {
         // Single Primitive
@@ -302,23 +305,23 @@ void callSubTests()
         CALL_SUBTEST((testIsSame<PlaneScaleSpaceDiff, HybridScaleSpaceDiff>(tree, scale, checkIsSamePlaneDerivative)));
     }
         */
-
-
 }
 
 int main(int argc, char** argv)
 {
+    std::vector<const char*> new_argv(argv, argv + argc);
+
+    // Other failing seed
+    // 1795101242
+    // 1795102289
+    new_argv.push_back("s1795094228");
+
     if (!init_testing(argc, argv))
     {
         return EXIT_FAILURE;
     }
-    // 1795101242
-    // 1795102289
-    set_seed_from_string("1795094228");
 
-
-    int fails = 0;
-    callSubTests<float, 3>();
-    callSubTests<double, 3>();
-    callSubTests<long double, 3>();
+    CALL_SUBTEST_1((callSubTests<float, 3>()));
+    CALL_SUBTEST_2((callSubTests<double, 3>()));
+    CALL_SUBTEST_3((callSubTests<long double, 3>()));
 }
